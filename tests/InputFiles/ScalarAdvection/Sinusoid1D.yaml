@@ -1,0 +1,60 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+# Executable: EvolveScalarAdvectionSinusoid1D
+# Check: parse;execute
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.001
+  TimeStepper:
+    RungeKutta3
+
+PhaseChangeAndTriggers:
+
+DomainCreator:
+  Interval:
+    LowerBound: [-1.0]
+    UpperBound: [1.0]
+    InitialRefinement: [6]
+    InitialGridPoints: [3]
+    TimeDependence: None
+    BoundaryConditions:
+      LowerBoundary: Periodic
+      UpperBoundary: Periodic
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Rusanov:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+
+AnalyticSolution:
+  Sinusoid:
+
+Limiter:
+  Minmod:
+    Type: LambdaPi1
+    # The optimal value of the TVB constant is problem-dependent.
+    # This test uses 0 to favor robustness over accuracy.
+    TvbConstant: 0.0
+    DisableForDebugging: false
+
+EventsAndTriggers:
+  ? Times:
+      Specified:
+        Values: [1.000]
+  : - Completion
+  # ? Slabs:
+  #     EvenlySpaced:
+  #       Interval: 10
+  #       Offset: 0
+  # : - ObserveFields:
+  #       SubfileName: "subfile_name"
+  #       VariablesToObserve: [U, VelocityField]
+  #       InterpolateToMesh: None
+
+Observers:
+  VolumeFileName: "ScalarAdvectionSinusoid1DVolume"
+  ReductionFileName: "ScalarAdvectionSinusoid1DReductions"
