@@ -21,6 +21,7 @@ spectre_target_headers(
   HEADERS
   Characteristics.hpp
   Fluxes.hpp
+  Initialize.hpp
   System.hpp
   Tags.hpp
   TimeDerivativeTerms.hpp
