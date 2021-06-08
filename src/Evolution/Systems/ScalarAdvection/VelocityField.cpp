@@ -6,7 +6,7 @@
 #include <cstddef>
 
 #include "DataStructures/DataVector.hpp"
-#include "DataStructures/Tensor/TypeAliases.hpp"
+#include "DataStructures/Tensor/Tensor.hpp"
 #include "Utilities/ContainerHelpers.hpp"
 #include "Utilities/GenerateInstantiations.hpp"
 #include "Utilities/Gsl.hpp"
@@ -17,6 +17,8 @@ template <size_t Dim>
 void VelocityFieldCompute<Dim>::function(
     const gsl::not_null<tnsr::I<DataVector, Dim>*> velocity_field,
     const tnsr::I<DataVector, Dim, Frame::Inertial>& inertial_coords) noexcept {
+  destructive_resize_components(velocity_field,
+                                get_size(get<0>(inertial_coords)));
   if constexpr (Dim == 1) {
     // 1D : advection to +x direction with velocity 1.0
     get<0>(*velocity_field) = 1.0;

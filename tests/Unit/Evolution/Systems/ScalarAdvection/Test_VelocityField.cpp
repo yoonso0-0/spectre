@@ -4,6 +4,7 @@
 #include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
+#include <limits>
 #include <random>
 
 #include "DataStructures/DataVector.hpp"
@@ -13,11 +14,16 @@
 #include "Framework/CheckWithRandomValues.hpp"
 #include "Framework/SetupLocalPythonEnvironment.hpp"
 #include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "Utilities/MakeWithValue.hpp"
 
 namespace {
 template <size_t Dim>
 void test_velocity_field(const gsl::not_null<std::mt19937*> gen) noexcept {
+  // test for tags
+  TestHelpers::db::test_compute_tag<
+      ScalarAdvection::Tags::VelocityFieldCompute<Dim>>("VelocityField");
+
   // generate random coordinates
   const DataVector used_for_size(10);
   std::uniform_real_distribution<> distribution(0.0);
