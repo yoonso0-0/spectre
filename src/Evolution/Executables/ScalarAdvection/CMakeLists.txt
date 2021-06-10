@@ -29,12 +29,17 @@ function(add_scalar_advection_executable INITIAL_DATA_NAME DIM INITIAL_DATA)
     )
 endfunction(add_scalar_advection_executable)
 
-function(add_sinusoid_executable)
+function(add_1D_executables)
   add_scalar_advection_executable(
     Sinusoid
     1
     ScalarAdvection::Solutions::Sinusoid
     )
-endfunction(add_sinusoid_executable)
+  add_scalar_advection_executable(
+    Krivodonova
+    1
+    ScalarAdvection::Solutions::Krivodonova
+    )
+endfunction(add_1D_executables)
 
-add_sinusoid_executable()
+add_1D_executables()
