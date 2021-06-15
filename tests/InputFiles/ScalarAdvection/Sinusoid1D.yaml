@@ -44,16 +44,16 @@ Limiter:
 EventsAndTriggers:
   ? Times:
       Specified:
-        Values: [1.000]
+        Values: [1.017] # Increasing to 1.018 makes it keep running
   : - Completion
-  # ? Slabs:
-  #     EvenlySpaced:
-  #       Interval: 10
-  #       Offset: 0
-  # : - ObserveFields:
-  #       SubfileName: "subfile_name"
-  #       VariablesToObserve: [U, VelocityField]
-  #       InterpolateToMesh: None
+  ? Slabs:
+      EvenlySpaced:
+        Interval: 10
+        Offset: 0
+  : - ObserveFields:
+        SubfileName: "subfile_name"
+        VariablesToObserve: [U, VelocityField]
+        InterpolateToMesh: None
 
 Observers:
   VolumeFileName: "ScalarAdvectionSinusoid1DVolume"
