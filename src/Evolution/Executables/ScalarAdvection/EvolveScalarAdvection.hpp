@@ -31,8 +31,8 @@
 #include "Evolution/DiscontinuousGalerkin/DgElementArray.hpp"  // IWYU pragma: keep
 #include "Evolution/DiscontinuousGalerkin/Initialization/Mortars.hpp"
 #include "Evolution/DiscontinuousGalerkin/Initialization/QuadratureTag.hpp"
+#include "Evolution/DiscontinuousGalerkin/Limiters/Krivodonova.hpp"
 #include "Evolution/DiscontinuousGalerkin/Limiters/LimiterActions.hpp"
-#include "Evolution/DiscontinuousGalerkin/Limiters/Minmod.hpp"
 #include "Evolution/DiscontinuousGalerkin/Limiters/Tags.hpp"
 #include "Evolution/EventsAndDenseTriggers/DenseTrigger.hpp"
 #include "Evolution/EventsAndDenseTriggers/DenseTriggers/Factory.hpp"
@@ -127,7 +127,7 @@ struct EvolutionMetavars {
 
   // The use_dg_subcell flag controls whether to use "standard" limiting (false)
   // or a DG-FD hybrid scheme (true).
-  static constexpr bool use_dg_subcell = true;
+  static constexpr bool use_dg_subcell = false;
 
   using initial_data = InitialData;
   static_assert(
@@ -140,7 +140,7 @@ struct EvolutionMetavars {
                           Tags::AnalyticData<initial_data>>;
 
   using limiter = Tags::Limiter<
-      Limiters::Minmod<Dim, typename system::variables_tag::tags_list>>;
+      Limiters::Krivodonova<Dim, typename system::variables_tag::tags_list>>;
 
   using time_stepper_tag = Tags::TimeStepper<
       tmpl::conditional_t<local_time_stepping, LtsTimeStepper, TimeStepper>>;
@@ -323,7 +323,6 @@ struct EvolutionMetavars {
       Initialization::Actions::AddComputeTags<
           StepChoosers::step_chooser_compute_tags<EvolutionMetavars>>,
       ::evolution::dg::Initialization::Mortars<volume_dim, system>,
-      Initialization::Actions::Minmod<Dim>,
       evolution::Actions::InitializeRunEventsAndDenseTriggers,
       Initialization::Actions::RemoveOptionsAndTerminatePhase>;
 
