@@ -28,21 +28,14 @@ SpatialDiscretization:
   DiscontinuousGalerkin:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
-    Subcell:
-      RdmpDelta0: 1.0e-7
-      RdmpEpsilon: 1.0e-3
-      PerssonExponent: 4.0
-      InitialData:
-        RdmpDelta0: 1.0e-7
-        RdmpEpsilon: 1.0e-3
-        PerssonExponent: 4.0
-      AlwaysUseSubcells: false
-  SubcellSolver:
-    Reconstructor:
-      MonotisedCentral
 
 AnalyticSolution:
   Kuzmin:
+
+Limiter:
+  Krivodonova:
+    Alphas: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    DisableForDebugging: false
 
 EventsAndTriggers:
   ? Slabs:
@@ -55,10 +48,10 @@ EventsAndTriggers:
         Offset: 0
   : - ObserveFields:
         SubfileName: VolumeData
-        VariablesToObserve: [U, TciStatus]
+        VariablesToObserve: [U]
         InterpolateToMesh: None
         CoordinatesFloatingPointType: Double
-        FloatingPointTypes: [Double, Float]
+        FloatingPointTypes: [Double]
 
 EventsAndDenseTriggers:
 
