@@ -642,17 +642,17 @@ bool Krivodonova<VolumeDim, tmpl::list<Tags...>>::operator()(
       neighbor_data)...);
 
   // transform back to nodal coefficients
-  const auto wrap_copy_nodal_coeffs =
-      [&mesh, &coeffs_self](auto tag, const auto tensor) {
-        auto& coeffs_tensor = get<decltype(tag)>(coeffs_self);
-        auto tensor_it = tensor->begin();
-        for (auto coeffs_it = coeffs_tensor.begin();
-             coeffs_it != coeffs_tensor.end();
-             (void)++coeffs_it, (void)++tensor_it) {
-          to_nodal_coefficients(make_not_null(&*tensor_it), *coeffs_it, mesh);
-        }
-        return '0';
-      };
+  const auto wrap_copy_nodal_coeffs = [&mesh, &coeffs_self](auto tag,
+                                                            const auto tensor) {
+    auto& coeffs_tensor = get<decltype(tag)>(coeffs_self);
+    auto tensor_it = tensor->begin();
+    for (auto coeffs_it = coeffs_tensor.begin();
+         coeffs_it != coeffs_tensor.end();
+         (void)++coeffs_it, (void)++tensor_it) {
+      to_nodal_coefficients(make_not_null(&*tensor_it), *coeffs_it, mesh);
+    }
+    return '0';
+  };
   expand_pack(wrap_copy_nodal_coeffs(::Tags::Modal<Tags>{}, tensors)...);
 
   return limited_any_component;
@@ -668,6 +668,7 @@ char Krivodonova<VolumeDim, tmpl::list<Tags...>>::limit_one_tensor(
         std::pair<Direction<1>, ElementId<1>>, PackagedData,
         boost::hash<std::pair<Direction<1>, ElementId<1>>>>& neighbor_data)
     const {
+  // put print() here
   using tensor_type = typename Tag::type;
   for (size_t storage_index = 0; storage_index < tensor_type::size();
        ++storage_index) {
