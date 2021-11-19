@@ -10,6 +10,7 @@ spectre_target_sources(
   PRIVATE
   CharacteristicHelpers.cpp
   Flattener.cpp
+  Krivodonova.cpp
   Minmod.cpp
   VariablesToLimit.cpp
   Weno.cpp
@@ -21,6 +22,7 @@ spectre_target_headers(
   HEADERS
   CharacteristicHelpers.hpp
   Flattener.hpp
+  Krivodonova.hpp
   KxrcfTci.hpp
   Minmod.hpp
   VariablesToLimit.hpp
