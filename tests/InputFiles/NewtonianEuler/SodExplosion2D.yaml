@@ -1,0 +1,67 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+# Executable: EvolveNewtonianEulerRiemannProblem1D
+# Check: parse;execute
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.0001
+  TimeStepper:
+    RungeKutta4
+
+PhaseChangeAndTriggers:
+
+DomainCreator:
+  Rectangle:
+    LowerBound: [-1.0, -1.0]
+    UpperBound: [1.0, 1.0]
+    InitialRefinement: [6, 6]
+    InitialGridPoints: [3, 3]
+    TimeDependence: None
+    BoundaryCondition:
+      DirichletAnalytic
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Hll:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: Gauss
+
+AnalyticData:
+  SodExplosion:
+    InitialRadius: 0.5
+    InnerMassDensity: 1.0
+    InnerPressure: 1.0
+    OuterMassDensity: 0.125
+    OuterPressure: 0.1
+
+Limiter:
+  NewtonianEulerKrivodonova:
+    VariablesToLimit: Conserved
+    Alphas: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ApplyFlattener: false
+    DisableForDebugging: false
+
+EventsAndTriggers:
+  ? Slabs:
+      EvenlySpaced:
+        Interval: 1
+        Offset: 0
+  : - ObserveFields:
+        SubfileName: VolumeData
+        VariablesToObserve: [MassDensity]
+        InterpolateToMesh: None
+        CoordinatesFloatingPointType: Double
+        FloatingPointTypes: [Double]
+  ? Slabs:
+      Specified:
+        Values: [4]
+  : - Completion
+
+EventsAndDenseTriggers:
+
+Observers:
+  VolumeFileName: "SodExplosion2DVolume"
+  ReductionFileName: "SodExplosion2DReductions"

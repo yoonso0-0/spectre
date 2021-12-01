@@ -8,7 +8,7 @@ Evolution:
   InitialTime: 0.0
   InitialTimeStep: 0.0001
   TimeStepper:
-    RungeKutta3
+    RungeKutta4
 
 PhaseChangeAndTriggers:
 
@@ -25,7 +25,7 @@ DomainCreator:
 
 SpatialDiscretization:
   BoundaryCorrection:
-    Hll:
+    Hllc:
   DiscontinuousGalerkin:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
@@ -67,5 +67,5 @@ EventsAndTriggers:
 EventsAndDenseTriggers:
 
 Observers:
-  VolumeFileName: "NewtonianEulerRiemannProblem1DVolume"
-  ReductionFileName: "NewtonianEulerRiemannProblem1DReductions"
+  VolumeFileName: "Sod1DLimitConsHllcR5P5Volume"
+  ReductionFileName: "Sod1DLimitConsHllcR5P5Reductions"
