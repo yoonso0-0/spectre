@@ -1,0 +1,70 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+# Executable: EvolveNewtonianEulerSmoothFlow1D
+# Check: parse;execute
+
+PhaseChangeAndTriggers:
+
+EventsAndDenseTriggers:
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Hll:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: Gauss
+
+AnalyticSolution:
+  SmoothFlow:
+    MeanVelocity: [0.8]
+    WaveVector: [1.0]
+    Pressure: 1.0
+    AdiabaticIndex: 1.4
+    PerturbationSize: 0.7
+
+Limiter:
+  Krivodonova:
+    Alphas: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    DisableForDebugging: false
+
+EventsAndTriggers:
+  ? Slabs:
+      Specified:
+        Values: [1]
+  : - Completion
+  ? Slabs:
+      Specified:
+        Values: [0, 1]
+  : - ObserveErrorNorms:
+        SubfileName: Error
+  ? Slabs:
+      Specified:
+        Values: [0, 1]
+  : - ObserveFields:
+        SubfileName: VolumeData
+        VariablesToObserve: [MassDensity]
+        InterpolateToMesh: None
+        CoordinatesFloatingPointType: Double
+        FloatingPointTypes: [Double]
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.001227184630308513
+  TimeStepper:
+    RungeKutta3
+
+DomainCreator:
+  Interval:
+    LowerBound: [0.0]
+    UpperBound: [6.283185307179586]
+    InitialRefinement: [5]
+    InitialGridPoints: [6]
+    TimeDependence: None
+    BoundaryConditions:
+      LowerBoundary: DirichletAnalytic
+      UpperBoundary: DirichletAnalytic
+
+Observers:
+  VolumeFileName: "SmoothFlow1D_Limited_Lev5N5_Volume"
+  ReductionFileName: "SmoothFlow1D_Limited_Lev5N5_Reductions"
