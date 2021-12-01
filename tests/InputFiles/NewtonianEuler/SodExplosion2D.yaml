@@ -13,34 +13,29 @@ Evolution:
 PhaseChangeAndTriggers:
 
 DomainCreator:
-  Interval:
-    LowerBound: [0.0]
-    UpperBound: [1.0]
-    InitialRefinement: [5]
-    InitialGridPoints: [6]
+  Rectangle:
+    LowerBound: [-1.0, -1.0]
+    UpperBound: [1.0, 1.0]
+    InitialRefinement: [6, 6]
+    InitialGridPoints: [3, 3]
     TimeDependence: None
-    BoundaryConditions:
-      LowerBoundary: DirichletAnalytic
-      UpperBoundary: DirichletAnalytic
+    BoundaryCondition:
+      DirichletAnalytic
 
 SpatialDiscretization:
   BoundaryCorrection:
-    Hllc:
+    Hll:
   DiscontinuousGalerkin:
     Formulation: StrongInertial
     Quadrature: Gauss
 
-AnalyticSolution:
-  RiemannProblem:
-    AdiabaticIndex: 1.4
-    InitialPosition: 0.5
-    LeftMassDensity: 1.0
-    LeftVelocity: [0.0]
-    LeftPressure: 1.0
-    RightMassDensity: 0.125
-    RightVelocity: [0.0]
-    RightPressure: 0.1
-    PressureStarTol: 1e-9
+AnalyticData:
+  SodExplosion:
+    InitialRadius: 0.5
+    InnerMassDensity: 1.0
+    InnerPressure: 1.0
+    OuterMassDensity: 0.125
+    OuterPressure: 0.1
 
 Limiter:
   NewtonianEulerKrivodonova:
@@ -52,7 +47,7 @@ Limiter:
 EventsAndTriggers:
   ? Slabs:
       EvenlySpaced:
-        Interval: 2000
+        Interval: 1
         Offset: 0
   : - ObserveFields:
         SubfileName: VolumeData
@@ -62,11 +57,11 @@ EventsAndTriggers:
         FloatingPointTypes: [Double]
   ? Slabs:
       Specified:
-        Values: [2000]
+        Values: [4]
   : - Completion
 
 EventsAndDenseTriggers:
 
 Observers:
-  VolumeFileName: "Sod1DLimitConsHllcR5P5Volume"
-  ReductionFileName: "Sod1DLimitConsHllcR5P5Reductions"
+  VolumeFileName: "SodExplosion2DVolume"
+  ReductionFileName: "SodExplosion2DReductions"

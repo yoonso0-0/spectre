@@ -9,6 +9,7 @@
 #include "Evolution/Systems/NewtonianEuler/System.hpp"
 #include "Evolution/Systems/NewtonianEuler/TimeDerivativeTerms.hpp"
 #include "PointwiseFunctions/AnalyticData/NewtonianEuler/KhInstability.hpp"
+#include "PointwiseFunctions/AnalyticData/NewtonianEuler/SodExplosion.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/NewtonianEuler/IsentropicVortex.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/NewtonianEuler/LaneEmdenStar.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/NewtonianEuler/RiemannProblem.hpp"
@@ -65,13 +66,17 @@ GENERATE_INSTANTIATIONS(INSTANTIATION, (2, 3),
 GENERATE_INSTANTIATIONS(INSTANTIATION, (2),
                         (::NewtonianEuler::Solutions::IsentropicVortex))
 
+GENERATE_INSTANTIATIONS(INSTANTIATION, (2, 3),
+                        (::NewtonianEuler::AnalyticData::SodExplosion))
+
 #undef INSTANTIATION
 #undef SYSTEM
 #undef INITIAL_DATA_TYPE
 #undef DIM
 
-using isentropic_vortex_3d_system = ::NewtonianEuler::System<
-    3, ::NewtonianEuler::Solutions::IsentropicVortex<3>>;
+using isentropic_vortex_3d_system =
+    ::NewtonianEuler::System<3,
+                             ::NewtonianEuler::Solutions::IsentropicVortex<3>>;
 
 template void volume_terms<::NewtonianEuler::TimeDerivativeTerms<
     3, ::NewtonianEuler::Solutions::IsentropicVortex<3>>>(

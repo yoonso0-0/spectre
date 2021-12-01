@@ -123,3 +123,14 @@ endfunction(add_smooth_flow_executable)
 add_smooth_flow_executable(1)
 add_smooth_flow_executable(2)
 add_smooth_flow_executable(3)
+
+function(add_sod_explosion_executable DIM)
+  add_newtonian_euler_executable(
+    SodExplosion
+    ${DIM}
+    NewtonianEuler::AnalyticData::SodExplosion<${DIM}>
+    )
+endfunction(add_sod_explosion_executable)
+
+add_sod_explosion_executable(2)
+add_sod_explosion_executable(3)
