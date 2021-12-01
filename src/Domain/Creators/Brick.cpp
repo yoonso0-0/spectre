@@ -84,9 +84,9 @@ Brick::Brick(
   using domain::BoundaryConditions::is_periodic;
   if (is_periodic(boundary_condition_)) {
     is_periodic_in_xyz_[0] = true;
-    is_periodic_in_xyz_[1] = true;
     boundary_condition_ = nullptr;
   }
+  is_periodic_in_xyz_[1] = true;
   is_periodic_in_xyz_[2] = true;
 }
 
@@ -117,10 +117,6 @@ Domain<3> Brick::create_domain() const {
     boundary_conditions[Direction<3>::lower_xi()] =
         boundary_condition_->get_clone();
     boundary_conditions[Direction<3>::upper_xi()] =
-        boundary_condition_->get_clone();
-    boundary_conditions[Direction<3>::lower_eta()] =
-        boundary_condition_->get_clone();
-    boundary_conditions[Direction<3>::upper_eta()] =
         boundary_condition_->get_clone();
     boundary_conditions_all_blocks.push_back(std::move(boundary_conditions));
   }
