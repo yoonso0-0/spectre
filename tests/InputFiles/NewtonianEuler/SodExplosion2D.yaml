@@ -38,10 +38,13 @@ AnalyticData:
     OuterPressure: 0.1
 
 Limiter:
-  NewtonianEulerKrivodonova:
-    VariablesToLimit: Conserved
-    Alphas: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    ApplyFlattener: false
+  NewtonianEulerMinmod:
+    Type: LambdaPiN
+    VariablesToLimit: Characteristic
+    # The optimal value of the TVB constant is problem-dependent.
+    # This test uses 0 to favor robustness over accuracy.
+    TvbConstant: 0.0
+    ApplyFlattener: true
     DisableForDebugging: false
 
 EventsAndTriggers:

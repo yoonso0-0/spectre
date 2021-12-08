@@ -35,6 +35,7 @@
 #include "Evolution/Systems/NewtonianEuler/BoundaryCorrections/Factory.hpp"
 #include "Evolution/Systems/NewtonianEuler/BoundaryCorrections/RegisterDerived.hpp"
 #include "Evolution/Systems/NewtonianEuler/Limiters/Krivodonova.hpp"
+#include "Evolution/Systems/NewtonianEuler/Limiters/Minmod.hpp"
 #include "Evolution/Systems/NewtonianEuler/SoundSpeedSquared.hpp"
 #include "Evolution/Systems/NewtonianEuler/Sources/NoSource.hpp"
 #include "Evolution/Systems/NewtonianEuler/System.hpp"
@@ -144,7 +145,7 @@ struct EvolutionMetavars {
   static constexpr bool has_source_terms =
       not std::is_same_v<source_term_type, NewtonianEuler::Sources::NoSource>;
 
-  using limiter = Tags::Limiter<NewtonianEuler::Limiters::Krivodonova<Dim>>;
+  using limiter = Tags::Limiter<NewtonianEuler::Limiters::Minmod<Dim>>;
 
   using time_stepper_tag = Tags::TimeStepper<
       tmpl::conditional_t<local_time_stepping, LtsTimeStepper, TimeStepper>>;
@@ -268,7 +269,7 @@ struct EvolutionMetavars {
       Initialization::Actions::AddComputeTags<
           StepChoosers::step_chooser_compute_tags<EvolutionMetavars>>,
       ::evolution::dg::Initialization::Mortars<volume_dim, system>,
-      //   Initialization::Actions::Minmod<Dim>,
+      Initialization::Actions::Minmod<Dim>,
       evolution::Actions::InitializeRunEventsAndDenseTriggers,
       Initialization::Actions::RemoveOptionsAndTerminatePhase>;
 
