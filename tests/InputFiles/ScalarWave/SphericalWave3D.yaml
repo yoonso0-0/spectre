@@ -1,0 +1,74 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+# Executable: EvolveScalarWaveRegularSphericalWave3D
+# Check: parse;execute
+
+AnalyticSolution:
+  RegularSphericalWave:
+    Profile:
+      Sinusoid:
+        Amplitude: 1.0
+        Wavenumber: 2.0
+        Phase: 0.0
+
+PhaseChangeAndTriggers:
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.0001
+  InitialSlabSize: 0.001
+  TimeStepper:
+    AdamsBashforthN:
+      Order: 3
+  StepController: BinaryFraction
+  StepChoosers:
+    - Constant: 0.05
+    - Increase:
+        Factor: 2
+    - Cfl:
+        SafetyFactor: 0.2
+
+DomainCreator:
+  Brick:
+    LowerBound: [-2, -2, -2]
+    UpperBound: [2, 2, 2]
+    InitialRefinement: [6, 6, 6]
+    InitialGridPoints: [3, 3, 3]
+    TimeDependence: None
+    BoundaryCondition: Periodic
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    UpwindPenalty:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+
+# If filtering is enabled in the executable the filter can be controlled using:
+# Filtering:
+#   ExpFilter0:
+#     Alpha: 12
+#     HalfPower: 32
+
+EventsAndTriggers:
+  ? Slabs:
+      EvenlySpaced:
+        Interval: 10
+        Offset: 0
+  : - ObserveFields:
+        SubfileName: VolumeData
+        VariablesToObserve: [Pi]
+        InterpolateToMesh: None
+        CoordinatesFloatingPointType: Double
+        FloatingPointTypes: [Double]
+  ? Slabs:
+      Specified:
+        Values: [500]
+  : - Completion
+
+EventsAndDenseTriggers:
+
+Observers:
+  VolumeFileName: "ScalarWavePlaneWave3DVolume_Run3_"
+  ReductionFileName: "ScalarWavePlaneWave3DReductions"
