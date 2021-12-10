@@ -14,10 +14,10 @@ PhaseChangeAndTriggers:
 
 DomainCreator:
   Interval:
-    LowerBound: [-0.25]
-    UpperBound: [0.75]
-    InitialRefinement: [1]
-    InitialGridPoints: [2]
+    LowerBound: [0.0]
+    UpperBound: [1.0]
+    InitialRefinement: [6]
+    InitialGridPoints: [3]
     TimeDependence: None
     BoundaryConditions:
       LowerBoundary: DirichletAnalytic
@@ -28,12 +28,12 @@ SpatialDiscretization:
     Hllc:
   DiscontinuousGalerkin:
     Formulation: StrongInertial
-    Quadrature: GaussLobatto
+    Quadrature: Gauss
 
 AnalyticSolution:
   RiemannProblem:
     AdiabaticIndex: 1.4
-    InitialPosition: 0.25
+    InitialPosition: 0.5
     LeftMassDensity: 1.0
     LeftVelocity: [0.0]
     LeftPressure: 1.0
@@ -43,25 +43,26 @@ AnalyticSolution:
     PressureStarTol: 1e-9
 
 Limiter:
-  NewtonianEulerMinmod:
-    Type: LambdaPiN
-    VariablesToLimit: Characteristic
-    # The optimal value of the TVB constant is problem-dependent.
-    # This test uses 0 to favor robustness over accuracy.
-    TvbConstant: 0.0
-    ApplyFlattener: true
+  NewtonianEulerKrivodonova:
+    VariablesToLimit: Conserved
+    Alphas: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ApplyFlattener: false
     DisableForDebugging: false
 
 EventsAndTriggers:
-  # ? Slabs:
-  #     EvenlySpaced:
-  #       Interval: 100
-  #       Offset: 0
-  # : - ObserveFields:
-  #       VariablesToObserve: [MassDensity]
+  ? Slabs:
+      EvenlySpaced:
+        Interval: 2000
+        Offset: 0
+  : - ObserveFields:
+        SubfileName: VolumeData
+        VariablesToObserve: [MassDensity]
+        InterpolateToMesh: None
+        CoordinatesFloatingPointType: Double
+        FloatingPointTypes: [Double]
   ? Slabs:
       Specified:
-        Values: [10]
+        Values: [2000]
   : - Completion
 
 EventsAndDenseTriggers:
