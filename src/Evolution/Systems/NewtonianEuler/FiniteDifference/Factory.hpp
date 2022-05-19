@@ -6,3 +6,4 @@
 #include "Evolution/Systems/NewtonianEuler/FiniteDifference/AoWeno.hpp"
 #include "Evolution/Systems/NewtonianEuler/FiniteDifference/MonotonisedCentral.hpp"
 #include "Evolution/Systems/NewtonianEuler/FiniteDifference/Reconstructor.hpp"
+#include "Evolution/Systems/NewtonianEuler/FiniteDifference/Wcns5z.hpp"

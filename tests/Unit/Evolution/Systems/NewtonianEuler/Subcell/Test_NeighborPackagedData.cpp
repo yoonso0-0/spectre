@@ -48,6 +48,7 @@
 #include "Evolution/Systems/NewtonianEuler/FiniteDifference/AoWeno.hpp"
 #include "Evolution/Systems/NewtonianEuler/FiniteDifference/MonotonisedCentral.hpp"
 #include "Evolution/Systems/NewtonianEuler/FiniteDifference/Tag.hpp"
+#include "Evolution/Systems/NewtonianEuler/FiniteDifference/Wcns5z.hpp"
 #include "Evolution/Systems/NewtonianEuler/Subcell/NeighborPackagedData.hpp"
 #include "Evolution/Systems/NewtonianEuler/Tags.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"

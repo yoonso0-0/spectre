@@ -14,6 +14,7 @@ set(LIBRARY_SOURCES
   FiniteDifference/Test_AoWeno.cpp
   FiniteDifference/Test_MonotonisedCentral.cpp
   FiniteDifference/Test_Tag.cpp
+  FiniteDifference/Test_Wcns5z.cpp
   Subcell/Test_ComputeFluxes.cpp
   Subcell/Test_InitialDataTci.cpp
   Subcell/Test_NeighborPackagedData.cpp
