@@ -123,3 +123,13 @@ endfunction(add_smooth_flow_executable)
 add_smooth_flow_executable(1)
 add_smooth_flow_executable(2)
 add_smooth_flow_executable(3)
+
+function(add_shuosher_tube_executable)
+  add_newtonian_euler_executable(
+    ShuOsherTube
+    1
+    NewtonianEuler::AnalyticData::ShuOsherTube
+    )
+endfunction(add_shuosher_tube_executable)
+
+add_shuosher_tube_executable()

@@ -7,6 +7,7 @@
 
 namespace NewtonianEuler {
 namespace AnalyticData {
+class ShuOsherTube;
 template <size_t Dim>
 class KhInstability;
 }  // namespace AnalyticData
