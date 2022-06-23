@@ -31,6 +31,8 @@
 #include "Utilities/ErrorHandling/Assert.hpp"
 #include "Utilities/Gsl.hpp"
 
+#include <iostream>
+
 namespace grmhd::ValenciaDivClean::fd {
 template <typename TagsList, size_t ThermodynamicDim>
 void compute_conservatives_for_reconstruction(
@@ -71,6 +73,7 @@ void compute_conservatives_for_reconstruction(
   const auto& rest_mass_density =
       get<hydro::Tags::RestMassDensity<DataVector>>(*vars_on_face);
   const auto& pressure = get<hydro::Tags::Pressure<DataVector>>(*vars_on_face);
+
   auto& specific_internal_energy =
       get<hydro::Tags::SpecificInternalEnergy<DataVector>>(*vars_on_face);
   if constexpr (ThermodynamicDim == 2) {

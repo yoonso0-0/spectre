@@ -9,6 +9,10 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Utilities/ConstantExpressions.hpp"
 
+#include <cmath>
+#include "Parallel/Printf.hpp"
+#include "Utilities/ContainerHelpers.hpp"
+
 // IWYU pragma: no_forward_declare Tensor
 
 namespace EquationsOfState {
@@ -93,6 +97,11 @@ Scalar<DataType> IdealFluid<IsRelativistic>::
     specific_internal_energy_from_density_and_pressure_impl(
         const Scalar<DataType>& rest_mass_density,
         const Scalar<DataType>& pressure) const {
+  if (min(abs(get(rest_mass_density))) < 1e-10) {
+    printf("\nIdeal Fluid ---");
+    Parallel::printf("* mass density : %s\n", get(rest_mass_density));
+    Parallel::printf("* pressure : %s\n", get(pressure));
+  }
   return Scalar<DataType>{1.0 / (adiabatic_index_ - 1.0) * get(pressure) /
                           get(rest_mass_density)};
 }
