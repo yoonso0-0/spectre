@@ -1,0 +1,113 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+# Executable: EvolveValenciaDivCleanBlastWave
+# Check: parse;execute
+
+ResourceInfo:
+  AvoidGlobalProc0: false
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.005
+  TimeStepper:
+    RungeKutta4:
+    # AdamsBashforthN:
+    #   Order: 1
+
+PhaseChangeAndTriggers:
+
+DomainCreator:
+  Brick:
+    LowerBound: [-0.5, -0.5, -0.5]
+    UpperBound: [0.5, 0.5, 0.5]
+    InitialRefinement: [3, 3, 0]
+    InitialGridPoints: [5, 5, 5]
+    TimeDependence: None
+    BoundaryCondition: Periodic
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Rusanov:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+    Subcell:
+      RdmpDelta0: 1.0e-4
+      RdmpEpsilon: 1.0e-3
+      PerssonExponent: 4.0
+      InitialData:
+        RdmpDelta0: 1.0e-4
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 4.0
+      AlwaysUseSubcells: false
+      SubcellToDgReconstructionMethod: DimByDim
+    TciOptions:
+      MinimumValueOfD: 1.0e-20
+      MinimumValueOfTildeTau: 1.0e-40
+      AtmosphereDensity: 1.01e-15
+      SafetyFactorForB: 1.0e-12
+      MagneticFieldCutoff: DoNotCheckMagneticField
+  SubcellSolver:
+    Reconstructor:
+      MonotonisedCentralPrim:
+
+AnalyticData:
+  KhInstability:
+    AdiabaticIndex: 1.333333333333333333333333
+    StripBimedianHeight: 0.0
+    StripThickness: 0.5
+    StripDensity: 1.0
+    StripVelocity: 0.5
+    BackgroundDensity: 1.0e-2
+    BackgroundVelocity: -0.5
+    Pressure: 1.0
+    PerturbAmplitude: 0.1
+    PerturbWidth: 0.0707 # 0.0707 ~ 0.1/sqrt(2)
+    MagneticField: [1.0e-3, 0.0, 0.0]
+
+EvolutionSystem:
+  ValenciaDivClean:
+    DampingParameter: 1.0
+
+VariableFixing:
+  FixToAtmosphere:
+    DensityOfAtmosphere: 1.0e-15
+    DensityCutoff: 1.01e-15
+    TransitionDensityCutoff: 1.0e-14
+    MaxVelocityMagnitude: 1.0e-4
+  FixConservatives:
+    CutoffD: 1.01e-15
+    MinimumValueOfD: 1.0e-15
+    SafetyFactorForB: 1.0e-12
+    SafetyFactorForS: 1.0e-12
+
+Observers:
+  VolumeFileName: "KhInstabilityMcLev4"
+  ReductionFileName: "KhInstabilityMcLev4"
+
+EventsAndTriggers:
+  ? Slabs:
+      EvenlySpaced:
+        Interval: 1
+        Offset: 0
+  : - ObserveFields:
+        VariablesToObserve: [RestMassDensity, TciStatus]
+        SubfileName: element_data
+        InterpolateToMesh: None
+        CoordinatesFloatingPointType: Float
+        FloatingPointTypes: [Float]
+  ? Slabs:
+      EvenlySpaced:
+        Interval: 2
+        Offset: 0
+  : - ObserveTimeStep:
+        SubfileName: time_steps
+        PrintTimeToTerminal: true
+        ObservePerCore: false
+  ? Slabs:
+      Specified:
+        Values: [10]
+  : - Completion
+
+EventsAndDenseTriggers:
