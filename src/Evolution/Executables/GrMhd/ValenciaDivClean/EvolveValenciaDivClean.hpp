@@ -368,10 +368,16 @@ struct EvolutionMetavars {
           VariableFixing::FixToAtmosphere<volume_dim>>,
       Actions::UpdateConservatives>>;
 
+  // OBSERVE HAPPENS BEFORE THIS
   using dg_subcell_step_actions = tmpl::flatten<tmpl::list<
       evolution::dg::subcell::Actions::SelectNumericalMethod,
 
       Actions::Label<evolution::dg::subcell::Actions::Labels::BeginDg>,
+
+      VariableFixing::Actions::FixVariables<
+          VariableFixing::FixToAtmosphere<volume_dim>>,
+      Actions::UpdateConservatives,
+
       evolution::dg::Actions::ComputeTimeDerivative<volume_dim, system,
                                                     AllStepChoosers>,
       evolution::dg::Actions::ApplyBoundaryCorrectionsToTimeDerivative<
@@ -386,9 +392,6 @@ struct EvolutionMetavars {
       evolution::dg::subcell::Actions::TciAndRollback<
           grmhd::ValenciaDivClean::subcell::TciOnDgGrid<
               tmpl::front<ordered_list_of_primitive_recovery_schemes>>>,
-      VariableFixing::Actions::FixVariables<
-          VariableFixing::FixToAtmosphere<volume_dim>>,
-      Actions::UpdateConservatives,
       Actions::Goto<evolution::dg::subcell::Actions::Labels::EndOfSolvers>,
 
       Actions::Label<evolution::dg::subcell::Actions::Labels::BeginSubcell>,
@@ -410,15 +413,15 @@ struct EvolutionMetavars {
       Actions::MutateApply<
           grmhd::ValenciaDivClean::subcell::FixConservativesAndComputePrims<
               ordered_list_of_primitive_recovery_schemes>>,
+      VariableFixing::Actions::FixVariables<
+          VariableFixing::FixToAtmosphere<volume_dim>>,
+      Actions::UpdateConservatives,
       evolution::dg::subcell::Actions::TciAndSwitchToDg<
           grmhd::ValenciaDivClean::subcell::TciOnFdGrid>,
       Actions::MutateApply<grmhd::ValenciaDivClean::subcell::SwapGrTags>,
       Actions::MutateApply<
           grmhd::ValenciaDivClean::subcell::ResizeAndComputePrims<
               ordered_list_of_primitive_recovery_schemes>>,
-      VariableFixing::Actions::FixVariables<
-          VariableFixing::FixToAtmosphere<volume_dim>>,
-      Actions::UpdateConservatives,
 
       Actions::Label<evolution::dg::subcell::Actions::Labels::EndOfSolvers>>>;
 
