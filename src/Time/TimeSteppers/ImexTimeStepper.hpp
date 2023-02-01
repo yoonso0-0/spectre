@@ -6,12 +6,12 @@
 #include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
 #include "DataStructures/MathWrapper.hpp"
-#include "Parallel/CharmPupable.hpp"
 #include "Time/History.hpp"
 #include "Time/Time.hpp"
 #include "Time/TimeSteppers/TimeStepper.hpp"
 #include "Utilities/GenerateInstantiations.hpp"
 #include "Utilities/Gsl.hpp"
+#include "Utilities/Serialization/CharmPupable.hpp"
 
 /// \cond
 #define IMEX_TIME_STEPPER_WRAPPED_TYPE(data) BOOST_PP_TUPLE_ELEM(0, data)
@@ -65,15 +65,15 @@ class ImexTimeStepper : public virtual TimeStepper {
   WRAPPED_PUPable_abstract(ImexTimeStepper);  // NOLINT
 
 /// \cond
-#define IMEX_TIME_STEPPER_DECLARE_VIRTUALS_IMPL(_, data)                      \
-  virtual void add_inhomogeneous_implicit_terms_forward(                      \
-      const gsl::not_null<IMEX_TIME_STEPPER_WRAPPED_TYPE(data)*> u,           \
-      const TimeSteppers::MutableUntypedHistory<                              \
-          IMEX_TIME_STEPPER_WRAPPED_TYPE(data)>& implicit_history,            \
-      const TimeDelta& time_step) const = 0;                                  \
-  virtual double implicit_weight_forward(                                     \
-      const TimeSteppers::ConstUntypedHistory<IMEX_TIME_STEPPER_WRAPPED_TYPE( \
-          data)>& implicit_history,                                           \
+#define IMEX_TIME_STEPPER_DECLARE_VIRTUALS_IMPL(_, data)            \
+  virtual void add_inhomogeneous_implicit_terms_forward(            \
+      const gsl::not_null<IMEX_TIME_STEPPER_WRAPPED_TYPE(data)*> u, \
+      const TimeSteppers::MutableUntypedHistory<                    \
+          IMEX_TIME_STEPPER_WRAPPED_TYPE(data)>& implicit_history,  \
+      const TimeDelta& time_step) const = 0;                        \
+  virtual double implicit_weight_forward(                           \
+      const TimeSteppers::MutableUntypedHistory<                    \
+          IMEX_TIME_STEPPER_WRAPPED_TYPE(data)>& implicit_history,  \
       const TimeDelta& time_step) const = 0;
 
   GENERATE_INSTANTIATIONS(IMEX_TIME_STEPPER_DECLARE_VIRTUALS_IMPL,
@@ -119,43 +119,44 @@ class ImexTimeStepper : public virtual TimeStepper {
   /// ```
   /// template <typename T>
   /// double implicit_weight_impl(
-  ///     const ConstUntypedHistory<T>& implicit_history,
+  ///     const MutableUntypedHistory<T>& implicit_history,
   ///     const TimeDelta& time_step) const;
   /// ```
   template <typename Vars>
-  double implicit_weight(const TimeSteppers::History<Vars>& implicit_history,
-                         const TimeDelta& time_step) const {
-    return implicit_weight_forward(implicit_history.untyped(), time_step);
+  double implicit_weight(
+      const gsl::not_null<TimeSteppers::History<Vars>*> implicit_history,
+      const TimeDelta& time_step) const {
+    return implicit_weight_forward(implicit_history->untyped(), time_step);
   }
 };
 
 /// \cond
-#define IMEX_TIME_STEPPER_DECLARE_OVERLOADS_IMPL(_, data)                     \
-  void add_inhomogeneous_implicit_terms_forward(                              \
-      const gsl::not_null<IMEX_TIME_STEPPER_WRAPPED_TYPE(data)*> u,           \
-      const TimeSteppers::MutableUntypedHistory<                              \
-          IMEX_TIME_STEPPER_WRAPPED_TYPE(data)>& implicit_history,            \
-      const TimeDelta& time_step) const override;                             \
-  double implicit_weight_forward(                                             \
-      const TimeSteppers::ConstUntypedHistory<IMEX_TIME_STEPPER_WRAPPED_TYPE( \
-          data)>& implicit_history,                                           \
+#define IMEX_TIME_STEPPER_DECLARE_OVERLOADS_IMPL(_, data)           \
+  void add_inhomogeneous_implicit_terms_forward(                    \
+      const gsl::not_null<IMEX_TIME_STEPPER_WRAPPED_TYPE(data)*> u, \
+      const TimeSteppers::MutableUntypedHistory<                    \
+          IMEX_TIME_STEPPER_WRAPPED_TYPE(data)>& implicit_history,  \
+      const TimeDelta& time_step) const override;                   \
+  double implicit_weight_forward(                                   \
+      const TimeSteppers::MutableUntypedHistory<                    \
+          IMEX_TIME_STEPPER_WRAPPED_TYPE(data)>& implicit_history,  \
       const TimeDelta& time_step) const override;
 
-#define IMEX_TIME_STEPPER_DEFINE_OVERLOADS_IMPL(_, data)                      \
-  void IMEX_TIME_STEPPER_DERIVED_CLASS(data)::                                \
-      add_inhomogeneous_implicit_terms_forward(                               \
-          const gsl::not_null<IMEX_TIME_STEPPER_WRAPPED_TYPE(data)*> u,       \
-          const TimeSteppers::MutableUntypedHistory<                          \
-              IMEX_TIME_STEPPER_WRAPPED_TYPE(data)>& implicit_history,        \
-          const TimeDelta& time_step) const {                                 \
-    return add_inhomogeneous_implicit_terms_impl(u, implicit_history,         \
-                                                 time_step);                  \
-  }                                                                           \
-  double IMEX_TIME_STEPPER_DERIVED_CLASS(data)::implicit_weight_forward(      \
-      const TimeSteppers::ConstUntypedHistory<IMEX_TIME_STEPPER_WRAPPED_TYPE( \
-          data)>& implicit_history,                                           \
-      const TimeDelta& time_step) const {                                     \
-    return implicit_weight_impl(implicit_history, time_step);                 \
+#define IMEX_TIME_STEPPER_DEFINE_OVERLOADS_IMPL(_, data)                 \
+  void IMEX_TIME_STEPPER_DERIVED_CLASS(data)::                           \
+      add_inhomogeneous_implicit_terms_forward(                          \
+          const gsl::not_null<IMEX_TIME_STEPPER_WRAPPED_TYPE(data)*> u,  \
+          const TimeSteppers::MutableUntypedHistory<                     \
+              IMEX_TIME_STEPPER_WRAPPED_TYPE(data)>& implicit_history,   \
+          const TimeDelta& time_step) const {                            \
+    return add_inhomogeneous_implicit_terms_impl(u, implicit_history,    \
+                                                 time_step);             \
+  }                                                                      \
+  double IMEX_TIME_STEPPER_DERIVED_CLASS(data)::implicit_weight_forward( \
+      const TimeSteppers::MutableUntypedHistory<                         \
+          IMEX_TIME_STEPPER_WRAPPED_TYPE(data)>& implicit_history,       \
+      const TimeDelta& time_step) const {                                \
+    return implicit_weight_impl(implicit_history, time_step);            \
   }
 /// \endcond
 
