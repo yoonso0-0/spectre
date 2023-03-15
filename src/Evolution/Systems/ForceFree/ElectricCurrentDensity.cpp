@@ -141,4 +141,64 @@ void ComputeTildeJ::function(
 }
 }  // namespace Tags
 
+void StiffSourceTildeE ::apply(
+    const gsl::not_null<tnsr::I<DataVector, 3, Frame::Inertial>*>
+        stiff_source_tilde_e,
+    const Scalar<DataVector>& tilde_q,
+    const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_e,
+    const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
+    const double parallel_conductivity, const Scalar<DataVector>& lapse,
+    const Scalar<DataVector>& sqrt_det_spatial_metric,
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
+  ComputeParallelTildeJ::apply(stiff_source_tilde_e, tilde_q, tilde_e, tilde_b,
+                               parallel_conductivity, lapse,
+                               sqrt_det_spatial_metric, spatial_metric);
+  for (size_t i = 0; i < 3; ++i) {
+    (*stiff_source_tilde_e).get(i) *= -1.0;
+  }
+}
+
+void StiffSourceTildeEJacobian::apply(
+    const gsl::not_null<tnsr::iJ<DataVector, 3>*> d_source_e_d_tilde_e,
+    const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_e,
+    const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
+    const double parallel_conductivity, const Scalar<DataVector>& lapse,
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
+  Variables<tmpl::list<::Tags::TempScalar<0>, ::Tags::TempScalar<1>,
+                       ::Tags::Tempi<0, 3>, ::Tags::Tempi<1, 3>>>
+      buffer{get(lapse).size()};
+
+  auto& tilde_e_squared = get<::Tags::TempScalar<0>>(buffer);
+  auto& tilde_b_squared = get<::Tags::TempScalar<1>>(buffer);
+  auto& tilde_e_one_form = get<::Tags::Tempi<0, 3>>(buffer);
+  auto& tilde_b_one_form = get<::Tags::Tempi<1, 3>>(buffer);
+
+  dot_product(make_not_null(&tilde_e_squared), tilde_e, tilde_e,
+              spatial_metric);
+  dot_product(make_not_null(&tilde_b_squared), tilde_b, tilde_b,
+              spatial_metric);
+  raise_or_lower_index(make_not_null(&tilde_e_one_form), tilde_e,
+                       spatial_metric);
+  raise_or_lower_index(make_not_null(&tilde_b_one_form), tilde_b,
+                       spatial_metric);
+
+  // note) ds_de.get(i,j) = ds^j / de^i
+  for (size_t i = 0; i < 3; ++i) {
+    for (size_t j = 0; j < 3; ++j) {
+      (*d_source_e_d_tilde_e).get(i, j) =
+          tilde_b_one_form.get(i) * tilde_b.get(j) +
+          2.0 * step_function(get(tilde_e_squared) - get(tilde_b_squared)) *
+              tilde_e_one_form.get(i) * tilde_e.get(j);
+    }
+
+    (*d_source_e_d_tilde_e).get(i, i) +=
+        max(get(tilde_e_squared) - get(tilde_b_squared), 0.0);
+
+    for (size_t j = 0; j < 3; ++j) {
+      (*d_source_e_d_tilde_e).get(i, j) *=
+          -parallel_conductivity * get(lapse) / get(tilde_b_squared);
+    }
+  }
+}
+
 }  // namespace ForceFree

@@ -16,9 +16,7 @@ add_subdirectory(Tags)
 
 add_test_library(
   ${LIBRARY}
-  "Evolution/Imex/"
   "${LIBRARY_SOURCES}"
-  ""
   )
 
 target_link_libraries(

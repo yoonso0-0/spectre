@@ -38,6 +38,8 @@
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TypeTraits/IsA.hpp"
 
+#include <iostream>
+
 /// \cond
 namespace imex::Tags {
 struct Mode;
@@ -434,13 +436,49 @@ void solve_implicit_sector_impl(
     } else {
       switch (db::get<Tags::Mode>(*box)) {
         case Mode::Implicit: {
-          const double tolerance = db::get<Tags::SolveTolerance>(*box);
+          // FIXME where should these be specified?
+          // FIXME : If solver fails frequently, try `Hybrid` or `Hybrids`
+          // method, or set max absolute tolerance to be positive finite value
+          // (1e-10)
+          //
+          // Aug 4 : try with different root finding method.
+          //
+          //  1. StoppingConditions::Residual(abs_tol)
+          //  2. StoppingConditions::Convergence(abs_tol, rel_tol)
+          //
+          //  a. Newton
+          //  b. Hybrids
+          //
+          //  i) zero max abs tolerance
+          //  ii) finite max abs tolerance
+          //
+
+          const double solve_tolerance = db::get<Tags::SolveTolerance>(*box);
+
+          // For now set abs tolerance to zero..
+          const double max_abs_tolerance = 0.0;
+
           const size_t max_iterations = 100;
+
+          const double residual_tolerance = 1.0e-10;
+          const double convergence_relative_tolerance = 1.0e-10;
+          const double convergence_absolute_tolerance = 1.0e-10;
+
           try {
+            // pointwise_vars_array = RootFinder::gsl_multiroot(
+            //     solver, solver.initial_guess(),
+            //     RootFinder::StoppingConditions::Residual(residual_tolerance),
+            //     max_iterations);
+
+            // Use relative convergence as stopping criteria
             pointwise_vars_array = RootFinder::gsl_multiroot(
                 solver, solver.initial_guess(),
-                RootFinder::StoppingConditions::Residual(tolerance),
-                max_iterations);
+                // RootFinder::StoppingConditions::Residual(residual_tolerance),
+                RootFinder::StoppingConditions::Convergence(
+                    convergence_absolute_tolerance,
+                    convergence_relative_tolerance),
+                max_iterations, Verbosity::Silent, max_abs_tolerance,
+                RootFinder::Method::Newton);
           } catch (const convergence_error&) {
             if constexpr (have_fallback) {
               ++get(*solve_failures)[point];
@@ -523,6 +561,10 @@ void solve_implicit_sector(const gsl::not_null<db::DataBox<DbTags>*> box) {
           box);
   Scalar<DataVector>& solve_failures =
       db::get_mutable_reference<Tags::SolveFailures<ImplicitSector>>(box);
+  // FIXME : need an ASSERT check here..?
+  // std::cout << "solve_implicit_sector : "
+  // << get(get<Tags::SolveFailures<ImplicitSector>>(*box)).size()
+  // << std::endl;
   get(solve_failures) = 0.0;
   Matrix scratch_matrix{};
   solve_implicit_sector_detail::solve_implicit_sector_impl<ImplicitSector, 0>(

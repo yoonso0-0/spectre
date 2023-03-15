@@ -22,6 +22,7 @@ spectre_target_headers(
   Mode.hpp
   NamespaceDocs.hpp
   SolveImplicitSector.hpp
+  UsingImex.hpp
   )
 
 target_link_libraries(

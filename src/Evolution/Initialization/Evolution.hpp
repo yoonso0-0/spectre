@@ -18,6 +18,7 @@
 #include "Domain/Amr/Tags/Flags.hpp"
 #include "Domain/Structure/ElementId.hpp"
 #include "Domain/Tags.hpp"
+#include "Evolution/Imex/UsingImex.hpp"
 #include "Evolution/Initialization/Tags.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "Parallel/Tags/ArrayIndex.hpp"
@@ -35,6 +36,7 @@
 #include "Time/Tags/TimeStepper.hpp"
 #include "Time/Time.hpp"
 #include "Time/TimeStepId.hpp"
+#include "Time/TimeSteppers/ImexTimeStepper.hpp"
 #include "Time/TimeSteppers/LtsTimeStepper.hpp"
 #include "Time/TimeSteppers/TimeStepper.hpp"
 #include "Utilities/Algorithm.hpp"
@@ -78,8 +80,8 @@ void set_next_time_step_id(const gsl::not_null<TimeStepId*> next_time_step_id,
 /// and `Tags::Next<Tags::TimeStepId>` is the initial time.
 template <typename Metavariables, bool UsingLts>
 struct TimeStepping {
-  using TimeStepperType =
-      tmpl::conditional_t<UsingLts, LtsTimeStepper, TimeStepper>;
+  using TimeStepperType = tmpl::conditional_t<imex::using_imex_v<Metavariables>,
+                                              ImexTimeStepper, TimeStepper>;
 
   /// Tags for constant items added to the GlobalCache.  These items are
   /// initialized from input file options.
@@ -300,6 +302,16 @@ struct TimeStepperHistory {
     const size_t starting_order =
         time_stepper.order() - time_stepper.number_of_past_steps();
     history->integration_order(starting_order);
+
+    // DtVars dt_vars{num_grid_points};
+    // typename ::Tags::HistoryEvolvedVariables<variables_tag>::type history{
+    //     starting_order};
+
+    // Initialization::mutate_assign<tmpl::list<
+    //     dt_variables_tag, ::Tags::HistoryEvolvedVariables<variables_tag>>>(
+    //     make_not_null(&box), std::move(dt_vars), std::move(history));
+
+    // return {Parallel::AlgorithmExecution::Continue, std::nullopt};
   }
 };
 }  // namespace Initialization

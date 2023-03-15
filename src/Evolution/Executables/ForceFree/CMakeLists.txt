@@ -12,6 +12,7 @@ set(LIBS_TO_LINK
   ForceFreeSolutions
   GeneralRelativitySolutions
   IO
+  Imex
   Informer
   Limiters
   LinearOperators
@@ -26,6 +27,6 @@ add_spectre_parallel_executable(
   "EvolveForceFree"
   EvolveForceFree
   Evolution/Executables/ForceFree
-  "EvolutionMetavars"
+  EvolutionMetavars
   "${LIBS_TO_LINK}"
   )

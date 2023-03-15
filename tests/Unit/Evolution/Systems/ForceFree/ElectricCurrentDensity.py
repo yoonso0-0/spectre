@@ -51,40 +51,35 @@ def tilde_j_parallel(
     tilde_b_squared = np.einsum("a, a", tilde_b_one_form, tilde_b)
     tilde_e_dot_tilde_b = np.einsum("a, a", tilde_e_one_form, tilde_b)
 
-    return (
-        parallel_conductivity
-        * lapse
-        * (
-            tilde_e_dot_tilde_b * tilde_b
-            + max(tilde_e_squared - tilde_b_squared, 0.0) * tilde_e
-        )
-        / tilde_b_squared
-    )
+    return (parallel_conductivity * lapse *
+            (tilde_e_dot_tilde_b * tilde_b +
+             max(tilde_e_squared - tilde_b_squared, 0.0) * tilde_e) /
+            tilde_b_squared)
 
 
-def tilde_j(
-    tilde_q,
-    tilde_e,
-    tilde_b,
-    parallel_conductivity,
-    lapse,
-    sqrt_det_spatial_metric,
-    spatial_metric,
-):
+def tilde_j(tilde_q, tilde_e, tilde_b, parallel_conductivity, lapse,
+            sqrt_det_spatial_metric, spatial_metric):
     return tilde_j_drift(
-        tilde_q,
-        tilde_e,
-        tilde_b,
-        parallel_conductivity,
-        lapse,
-        sqrt_det_spatial_metric,
-        spatial_metric,
-    ) + tilde_j_parallel(
-        tilde_q,
-        tilde_e,
-        tilde_b,
-        parallel_conductivity,
-        lapse,
-        sqrt_det_spatial_metric,
-        spatial_metric,
-    )
+        tilde_q, tilde_e, tilde_b, parallel_conductivity, lapse,
+        sqrt_det_spatial_metric, spatial_metric) + tilde_j_parallel(
+            tilde_q, tilde_e, tilde_b, parallel_conductivity, lapse,
+            sqrt_det_spatial_metric, spatial_metric)
+
+
+def jacobian(tilde_e, tilde_b, parallel_conductivity, lapse, spatial_metric):
+    tilde_e_one_form = np.einsum("a, ia", tilde_e, spatial_metric)
+    tilde_b_one_form = np.einsum("a, ia", tilde_b, spatial_metric)
+    tilde_e_squared = np.einsum("a, a", tilde_e_one_form, tilde_e)
+    tilde_b_squared = np.einsum("a, a", tilde_b_one_form, tilde_b)
+
+    result = np.outer(tilde_b_one_form, tilde_b)
+
+    result += 2.0 * np.heaviside(tilde_e_squared - tilde_b_squared,
+                                 1.0) * np.outer(tilde_e_one_form, tilde_e)
+
+    result += np.identity(3) * np.maximum(tilde_e_squared - tilde_b_squared,
+                                          0.0)
+
+    result *= -lapse * parallel_conductivity / tilde_b_squared
+
+    return result
