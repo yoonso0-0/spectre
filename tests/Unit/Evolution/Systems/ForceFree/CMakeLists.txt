@@ -12,6 +12,7 @@ set(LIBRARY_SOURCES
   FiniteDifference/Test_Wcns5z.cpp
   Subcell/Test_ComputeFluxes.cpp
   Subcell/Test_GhostData.cpp
+  Subcell/Test_NeighborPackagedData.cpp
   Subcell/Test_SetInitialRdmpData.cpp
   Subcell/Test_SwapGrTags.cpp
   Subcell/Test_TciOnDgGrid.cpp
