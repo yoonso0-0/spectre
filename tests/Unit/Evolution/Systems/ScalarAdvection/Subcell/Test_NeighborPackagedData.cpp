@@ -66,9 +66,6 @@
 namespace ScalarAdvection {
 namespace {
 template <size_t Dim>
-auto compute_face_tensor() {}
-
-template <size_t Dim>
 void test_neighbor_packaged_data(const size_t num_dg_pts_per_dimension,
                                  const gsl::not_null<std::mt19937*> gen) {
   // 1. create random U on an element and its neighbor elements
