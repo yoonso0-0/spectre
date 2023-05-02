@@ -1,0 +1,149 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+Executable: EvolveForceFree
+Testing:
+  Check: parse;execute
+
+---
+
+InitialData: &InitialData
+  OverlappingAlfvenWaves:
+    NormalizedWaveAmplitude: 0.1
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.001
+  TimeStepper:
+    # Rk3Kennedy
+    Rk3PareschiSsp4
+  ImexMode: Implicit
+  ImexImplicitSolveTolerance: 1.0e-10
+
+Observers:
+  VolumeFileName: "ForceFreeOverlappingAlfvenWavesLev5Volume"
+  ReductionFileName: "ForceFreeOverlappingAlfvenWavesLev5Reductions"
+
+EvolutionSystem:
+  ForceFree:
+    ConstraintDamping:
+      KappaPsi: 1.0
+      KappaPhi: 1.0
+    ForceFreeCurrent:
+      ParallelConductivity: 1e3
+
+DomainCreator:
+  Brick:
+    LowerBound: [0, 0, 0]
+    UpperBound: [6.283185307179586,
+                 6.283185307179586,
+                 6.283185307179586]
+    InitialRefinement: [3, 3, 3]
+    InitialGridPoints: [3, 3, 3]
+    TimeDependence: None
+    BoundaryConditionInX: Periodic
+    BoundaryConditionInY: Periodic
+    BoundaryConditionInZ: Periodic
+
+# Limiter:
+#   Minmod:
+#     Type: LambdaPiN
+#     # The optimal value of the TVB constant is problem-dependent.
+#     # This test uses 0 to favor robustness over accuracy.
+#     TvbConstant: 10.0
+#     # disable limiter for FFE runs
+#     DisableForDebugging: true
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Rusanov:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+    Subcell:
+      RdmpDelta0: 1.0e-2
+      RdmpEpsilon: 1.0e-2
+      PerssonExponent: 2.0
+      InitialData:
+        RdmpDelta0: 1.0e-7
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 4.0
+      AlwaysUseSubcells: false
+      SubcellToDgReconstructionMethod: DimByDim
+      UseHalo: false
+      OnlyDgBlocksAndGroups: None
+      FiniteDifferenceDerivativeOrder: 2
+    TciOptions:
+      CutoffTildeQ: 1.0e-5
+      CutoffTildeJ: 1.0e-5
+  SubcellSolver:
+    Reconstructor:
+      MonotonisedCentral
+      # Wcns5z:
+      #   NonlinearWeightExponent: 2
+      #   Epsilon: 1e-15
+      #   FallbackReconstructor: None
+      #   MaxNumberOfExtrema: 0
+
+EventsAndTriggers:
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [10]
+    Events:
+      - Completion
+  # - Trigger:
+  #     TimeCompares:
+  #       Comparison: GreaterThanOrEqualTo
+  #       Value: 0.1
+  #   Events:
+  #     - Completion
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [0]
+    Events:
+      - ChangeSlabSize:
+          DelayChange: 0
+          StepChoosers:
+            - Cfl:
+                SafetyFactor: 0.3
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 10
+          Offset: 0
+    Events:
+      - ObserveTimeStep:
+          SubfileName: time_steps
+          PrintTimeToTerminal: true
+          ObservePerCore: false
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 1
+          Offset: 0
+    Events:
+      - ObserveFields:
+          SubfileName: VolumeData
+          VariablesToObserve: [
+              ElectricField, MagneticField,
+              ChargeDensity,
+              TildeJ,
+              TildePsi, TildePhi,
+              # Error(TildeE), Error(TildeB),
+              ElectricFieldDotMagneticField,
+              # MagneticDominanceViolation,
+              # JouleHeating,
+              TciStatus,
+            ]
+          InterpolateToMesh: None
+          CoordinatesFloatingPointType: Float
+          FloatingPointTypes: [Float]
+
+EventsAndDenseTriggers:
+
+PhaseChangeAndTriggers:
+
+ResourceInfo:
+  AvoidGlobalProc0: false
