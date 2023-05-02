@@ -24,4 +24,5 @@ spectre_target_headers(
   SwapGrTags.hpp
   TciOnDgGrid.hpp
   TciOnFdGrid.hpp
+  TimeDerivative.hpp
   )
