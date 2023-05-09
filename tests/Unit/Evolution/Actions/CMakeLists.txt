@@ -4,6 +4,7 @@
 set(LIBRARY "Test_EvolutionActions")
 
 set(LIBRARY_SOURCES
+  Test_BackgroundGrVars.cpp
   Test_RunEventsAndDenseTriggers.cpp
   )
 
