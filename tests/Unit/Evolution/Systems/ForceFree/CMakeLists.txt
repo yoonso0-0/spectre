@@ -15,6 +15,7 @@ set(LIBRARY_SOURCES
   Subcell/Test_GhostData.cpp
   Subcell/Test_NeighborPackagedData.cpp
   Subcell/Test_SetInitialRdmpData.cpp
+  Subcell/Test_SwapGrTags.cpp
   Subcell/Test_TciOnDgGrid.cpp
   Subcell/Test_TciOnFdGrid.cpp
   Subcell/Test_TciOptions.cpp
