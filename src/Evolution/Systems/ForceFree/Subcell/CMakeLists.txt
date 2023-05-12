@@ -9,6 +9,7 @@ spectre_target_sources(
   GhostData.cpp
   NeighborPackagedData.cpp
   SetInitialRdmpData.cpp
+  SwapGrTags.cpp
   SwapMask.cpp
   TciOnDgGrid.cpp
   TciOnFdGrid.cpp
@@ -23,6 +24,7 @@ spectre_target_headers(
   NeighborPackagedData.hpp
   SetInitialRdmpData.hpp
   Subcell.hpp
+  SwapGrTags.hpp
   SwapMask.hpp
   TciOnDgGrid.hpp
   TciOnFdGrid.hpp
