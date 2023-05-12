@@ -8,6 +8,7 @@ spectre_target_headers(
   INCLUDE_DIRECTORY ${CMAKE_SOURCE_DIR}/src
   HEADERS
   Actions.hpp
+  BackgroundGrVars.hpp
   Initialize.hpp
   Labels.hpp
   ReconstructionCommunication.hpp
