@@ -13,6 +13,7 @@ set(LIBRARY_SOURCES
   Subcell/Test_ComputeFluxes.cpp
   Subcell/Test_GhostData.cpp
   Subcell/Test_SetInitialRdmpData.cpp
+  Subcell/Test_SwapGrTags.cpp
   Subcell/Test_TciOnDgGrid.cpp
   Subcell/Test_TciOnFdGrid.cpp
   Test_Characteristics.cpp
