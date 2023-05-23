@@ -37,6 +37,9 @@
 #include "Evolution/DgSubcell/Tags/TciStatus.hpp"
 #include "Evolution/DiscontinuousGalerkin/InboxTags.hpp"
 #include "Evolution/DiscontinuousGalerkin/Tags/NeighborMesh.hpp"
+#include "Evolution/Imex/Tags/ImplicitHistory.hpp"
+#include "Evolution/Imex/Tags/SolveFailures.hpp"
+#include "Evolution/Imex/UsingImex.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "Parallel/AlgorithmExecution.hpp"
 #include "Parallel/GlobalCache.hpp"
@@ -46,8 +49,11 @@
 #include "Time/Tags/HistoryEvolvedVariables.hpp"
 #include "Utilities/ContainerHelpers.hpp"
 #include "Utilities/ErrorHandling/Assert.hpp"
+#include "Utilities/SetNumberOfGridPoints.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
+
+#include <iostream>
 
 /// \cond
 namespace Tags {
@@ -262,6 +268,34 @@ struct TciAndRollback {
         make_not_null(&box),
         db::get<evolution::dg::Tags::NeighborMesh<Dim>>(box),
         Metavariables::SubcellOptions::ghost_zone_size(box));
+
+    if constexpr (::imex::using_imex_v<Metavariables>) {
+      // FIXME : ask Will how to change this
+      using implicit_sector = typename Metavariables::system::ImplicitSector;
+
+      // Add comment here that fallback sector doens't really matter.
+      db::mutate<::imex::Tags::ImplicitHistory<implicit_sector>,
+                 ::imex::Tags::SolveFailures<implicit_sector>>(
+          [&dg_mesh, &subcell_mesh](const auto implicit_history_ptr,
+                                    const auto solve_failures_ptr) {
+            // FIXME : ask Will if this ASSERT check is still correct here
+            ASSERT(
+                implicit_history_ptr->size() > 0,
+                "We cannot have an empty history when unwinding, that's just "
+                "nutty. Did you call the action too early in the action "
+                "list?");
+
+            implicit_history_ptr->undo_latest();
+            implicit_history_ptr->map_entries(
+                [&dg_mesh, &subcell_mesh](const auto entry) {
+                  *entry = fd::project(*entry, dg_mesh, subcell_mesh.extents());
+                });
+
+            set_number_of_grid_points(solve_failures_ptr,
+                                      subcell_mesh.number_of_grid_points());
+          },
+          make_not_null(&box));
+    }
 
     if (UNLIKELY(db::get<::Tags::TimeStepId>(box).slab_number() < 0)) {
       // If we are doing self start, then we need to project the initial

@@ -16,9 +16,32 @@
 #include "Domain/Creators/TimeDependence/RegisterDerivedWithCharm.hpp"
 #include "Domain/FunctionsOfTime/RegisterDerivedWithCharm.hpp"
 #include "Domain/Tags.hpp"
+#include "Evolution/Actions/BackgroundGrVars.hpp"
 #include "Evolution/Actions/RunEventsAndDenseTriggers.hpp"
 #include "Evolution/Actions/RunEventsAndTriggers.hpp"
 #include "Evolution/ComputeTags.hpp"
+#include "Evolution/DgSubcell/Actions/BackgroundGrVars.hpp"
+#include "Evolution/DgSubcell/Actions/Initialize.hpp"
+#include "Evolution/DgSubcell/Actions/Labels.hpp"
+#include "Evolution/DgSubcell/Actions/ReconstructionCommunication.hpp"
+#include "Evolution/DgSubcell/Actions/SelectNumericalMethod.hpp"
+#include "Evolution/DgSubcell/Actions/TakeTimeStep.hpp"
+#include "Evolution/DgSubcell/Actions/TciAndRollback.hpp"
+#include "Evolution/DgSubcell/Actions/TciAndSwitchToDg.hpp"
+#include "Evolution/DgSubcell/CartesianFluxDivergence.hpp"
+#include "Evolution/DgSubcell/CellCenteredFlux.hpp"
+#include "Evolution/DgSubcell/ComputeBoundaryTerms.hpp"
+#include "Evolution/DgSubcell/CorrectPackagedData.hpp"
+#include "Evolution/DgSubcell/GetTciDecision.hpp"
+#include "Evolution/DgSubcell/NeighborReconstructedFaceSolution.hpp"
+#include "Evolution/DgSubcell/NeighborTciDecision.hpp"
+#include "Evolution/DgSubcell/PerssonTci.hpp"
+#include "Evolution/DgSubcell/PrepareNeighborData.hpp"
+#include "Evolution/DgSubcell/Tags/MethodOrder.hpp"
+#include "Evolution/DgSubcell/Tags/ObserverCoordinates.hpp"
+#include "Evolution/DgSubcell/Tags/ObserverMesh.hpp"
+#include "Evolution/DgSubcell/Tags/TciStatus.hpp"
+#include "Evolution/DgSubcell/TwoMeshRdmpTci.hpp"
 #include "Evolution/DiscontinuousGalerkin/Actions/ApplyBoundaryCorrections.hpp"
 #include "Evolution/DiscontinuousGalerkin/Actions/ComputeTimeDerivative.hpp"
 #include "Evolution/DiscontinuousGalerkin/BackgroundGrVars.hpp"
@@ -45,7 +68,18 @@
 #include "Evolution/Systems/ForceFree/Constraints.hpp"
 #include "Evolution/Systems/ForceFree/ElectricCurrentDensity.hpp"
 #include "Evolution/Systems/ForceFree/ElectromagneticVariables.hpp"
+#include "Evolution/Systems/ForceFree/FiniteDifference/Factory.hpp"
+#include "Evolution/Systems/ForceFree/FiniteDifference/Reconstructor.hpp"
+#include "Evolution/Systems/ForceFree/FiniteDifference/RegisterDerivedWithCharm.hpp"
+#include "Evolution/Systems/ForceFree/FiniteDifference/Tags.hpp"
 #include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/GhostData.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/NeighborPackagedData.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/SetInitialRdmpData.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/SwapGrTags.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TciOnDgGrid.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TciOnFdGrid.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TimeDerivative.hpp"
 #include "Evolution/Systems/ForceFree/System.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "IO/Observer/Actions/RegisterEvents.hpp"
@@ -117,7 +151,14 @@ struct EvolutionMetavars {
   using system = ForceFree::System;
   using temporal_id = Tags::TimeStepId;
   static constexpr bool local_time_stepping = false;
+
+  // A flag that controls whether to use the Implicit-Explicit (IMEX) time
+  // stepping method
   static constexpr bool imex_time_stepping = true;
+
+  // The use_dg_subcell flag controls whether to use "standard" limiting (false)
+  // or a DG-FD hybrid scheme (true).
+  static constexpr bool use_dg_subcell = true;
 
   using initial_data_list = tmpl::append<ForceFree::Solutions::all_solutions,
                                          ForceFree::AnalyticData::all_data>;
@@ -129,16 +170,29 @@ struct EvolutionMetavars {
   using analytic_variables_tags = typename system::variables_tag::tags_list;
 
   using analytic_compute = evolution::Tags::AnalyticSolutionsCompute<
-      volume_dim, analytic_variables_tags, false, initial_data_list>;
+      volume_dim, analytic_variables_tags, use_dg_subcell, initial_data_list>;
 
   using error_compute = Tags::ErrorsCompute<analytic_variables_tags>;
 
   using error_tags = db::wrap_tags_in<Tags::Error, analytic_variables_tags>;
 
   using observe_fields = tmpl::push_back<
-      tmpl::append<typename system::variables_tag::tags_list, error_tags>,
-      domain::Tags::Coordinates<volume_dim, Frame::Grid>,
-      domain::Tags::Coordinates<volume_dim, Frame::Inertial>,
+      tmpl::append<
+          typename system::variables_tag::tags_list, error_tags,
+          tmpl::conditional_t<use_dg_subcell,
+                              tmpl::list<evolution::dg::subcell::Tags::
+                                             TciStatusCompute<volume_dim>>,
+                              tmpl::list<>>>,
+      tmpl::conditional_t<
+          use_dg_subcell,
+          evolution::dg::subcell::Tags::ObserverCoordinatesCompute<volume_dim,
+                                                                   Frame::Grid>,
+          domain::Tags::Coordinates<volume_dim, Frame::Grid>>,
+      tmpl::conditional_t<
+          use_dg_subcell,
+          evolution::dg::subcell::Tags::ObserverCoordinatesCompute<
+              volume_dim, Frame::Inertial>,
+          domain::Tags::Coordinates<volume_dim, Frame::Inertial>>,
       ForceFree::Tags::ElectricFieldCompute,
       ForceFree::Tags::MagneticFieldCompute,
       ForceFree::Tags::ChargeDensityCompute,
@@ -146,11 +200,14 @@ struct EvolutionMetavars {
       ForceFree::Tags::ElectricFieldDotMagneticFieldCompute,
       ForceFree::Tags::MagneticDominanceViolationCompute>;
 
-  using non_tensor_compute_tags =
-      tmpl::list<::Events::Tags::ObserverMeshCompute<volume_dim>,
-                 ::Events::Tags::ObserverDetInvJacobianCompute<
-                     Frame::ElementLogical, Frame::Inertial>,
-                 analytic_compute, error_compute>;
+  using non_tensor_compute_tags = tmpl::list<
+      tmpl::conditional_t<
+          use_dg_subcell,
+          evolution::dg::subcell::Tags::ObserverMeshCompute<volume_dim>,
+          ::Events::Tags::ObserverMeshCompute<volume_dim>>,
+      ::Events::Tags::ObserverDetInvJacobianCompute<Frame::ElementLogical,
+                                                    Frame::Inertial>,
+      analytic_compute, error_compute>;
 
   struct factory_creation
       : tt::ConformsTo<Options::protocols::FactoryCreation> {
@@ -188,6 +245,26 @@ struct EvolutionMetavars {
                                          Triggers::time_triggers>>>;
   };
 
+  struct SubcellOptions {
+    static constexpr bool subcell_enabled = use_dg_subcell;
+    static constexpr bool subcell_enabled_at_external_boundary = false;
+
+    // We send `ghost_zone_size` cell-centered grid points for variable
+    // reconstruction, of which we need `ghost_zone_size-1` for reconstruction
+    // to the internal side of the element face, and `ghost_zone_size` for
+    // reconstruction to the external side of the element face.
+    template <typename DbTagsList>
+    static constexpr size_t ghost_zone_size(
+        const db::DataBox<DbTagsList>& box) {
+      return db::get<ForceFree::fd::Tags::Reconstructor>(box).ghost_zone_size();
+    }
+
+    using DgComputeSubcellNeighborPackagedData =
+        ForceFree::subcell::NeighborPackagedData;
+
+    using GhostVariables = ForceFree::subcell::GhostVariables;
+  };
+
   using observed_reduction_data_tags =
       observers::collect_reduction_data_tags<tmpl::flatten<tmpl::list<
           tmpl::at<typename factory_creation::factory_classes, Event>>>>;
@@ -218,21 +295,80 @@ struct EvolutionMetavars {
               Actions::UpdateU<system>>>,
 
       // Manually check the E dot B constraint.
-      ForceFree::Actions::ObserveEdotB<true>,
+      //   ForceFree::Actions::ObserveEdotB<true>,
 
       // implicit step
       tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,
                           tmpl::list<>>,
 
-      ForceFree::Actions::ObserveEdotB<false>,
+      //   ForceFree::Actions::ObserveEdotB<false>,
 
       Limiters::Actions::SendData<EvolutionMetavars>,
       Limiters::Actions::Limit<EvolutionMetavars>>>;
 
-  using const_global_cache_tags =
-      tmpl::list<evolution::initial_data::Tags::InitialData,
-                 ForceFree::Tags::KappaPsi, ForceFree::Tags::KappaPhi,
-                 ForceFree::Tags::ParallelConductivity>;
+  // FIXME add Dense events for local time stepping
+  using dg_subcell_step_actions = tmpl::flatten<tmpl::list<
+      evolution::dg::subcell::Actions::SelectNumericalMethod,
+
+      Actions::Label<evolution::dg::subcell::Actions::Labels::BeginDg>,
+      evolution::Actions::BackgroundGrVars<system, true>,
+      evolution::dg::Actions::ComputeTimeDerivative<
+          volume_dim, system, AllStepChoosers, local_time_stepping>,
+      tmpl::list<
+          evolution::dg::Actions::ApplyBoundaryCorrectionsToTimeDerivative<
+              system, volume_dim, false>,
+          Actions::RecordTimeStepperData<system>,
+          tmpl::conditional_t<imex_time_stepping,
+                              imex::Actions::RecordTimeStepperData,
+                              tmpl::list<>>,
+          evolution::Actions::RunEventsAndDenseTriggers<tmpl::list<>>,
+          Actions::UpdateU<system>>,
+
+      // implicit step
+      tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,
+                          tmpl::list<>>,
+
+      evolution::dg::subcell::Actions::TciAndRollback<
+          ForceFree::subcell::TciOnDgGrid>,
+
+      Actions::Goto<evolution::dg::subcell::Actions::Labels::EndOfSolvers>,
+
+      Actions::Label<evolution::dg::subcell::Actions::Labels::BeginSubcell>,
+      evolution::dg::subcell::Actions::BackgroundGrVars<system, true>,
+      evolution::dg::subcell::Actions::SendDataForReconstruction<
+          volume_dim, ForceFree::subcell::GhostVariables, local_time_stepping>,
+      evolution::dg::subcell::Actions::ReceiveDataForReconstruction<volume_dim>,
+      Actions::Label<
+          evolution::dg::subcell::Actions::Labels::BeginSubcellAfterDgRollback>,
+      Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
+      evolution::dg::subcell::fd::Actions::TakeTimeStep<
+          ForceFree::subcell::TimeDerivative>,
+      Actions::RecordTimeStepperData<system>,
+      tmpl::conditional_t<imex_time_stepping,
+                          imex::Actions::RecordTimeStepperData, tmpl::list<>>,
+      evolution::Actions::RunEventsAndDenseTriggers<tmpl::list<>>,
+      Actions::UpdateU<system>,
+
+      // implicit step
+      tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,
+                          tmpl::list<>>,
+
+      evolution::dg::subcell::Actions::TciAndSwitchToDg<
+          ForceFree::subcell::TciOnFdGrid>,
+      Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
+      Actions::Label<evolution::dg::subcell::Actions::Labels::EndOfSolvers>>>;
+
+  using step_actions =
+      tmpl::conditional_t<use_dg_subcell, dg_subcell_step_actions,
+                          dg_step_actions>;
+
+  using const_global_cache_tags = tmpl::list<
+      evolution::initial_data::Tags::InitialData,
+      tmpl::conditional_t<use_dg_subcell,
+                          tmpl::list<ForceFree::fd::Tags::Reconstructor>,
+                          tmpl::list<>>,
+      ForceFree::Tags::KappaPsi, ForceFree::Tags::KappaPhi,
+      ForceFree::Tags::ParallelConductivity>;
 
   using dg_registration_list =
       tmpl::list<observers::Actions::RegisterEventsWithObservers>;
@@ -256,6 +392,16 @@ struct EvolutionMetavars {
       tmpl::conditional_t<
           imex_time_stepping,
           Initialization::Actions::InitializeItems<imex::Initialize<system>>,
+          tmpl::list<>>,
+
+      tmpl::conditional_t<
+          use_dg_subcell,
+          tmpl::list<
+              evolution::dg::subcell::Actions::Initialize<
+                  volume_dim, system, ForceFree::subcell::DgInitialDataTci>,
+              evolution::dg::subcell::Actions::BackgroundGrVars<system, false>,
+              Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
+              Actions::MutateApply<ForceFree::subcell::SetInitialRdmpData>>,
           tmpl::list<>>,
 
       Initialization::Actions::AddComputeTags<
@@ -284,7 +430,7 @@ struct EvolutionMetavars {
 
           Parallel::PhaseActions<
               Parallel::Phase::InitializeTimeStepperHistory,
-              SelfStart::self_start_procedure<dg_step_actions, system>>,
+              SelfStart::self_start_procedure<step_actions, system>>,
 
           Parallel::PhaseActions<
               Parallel::Phase::Evolve,
@@ -324,6 +470,7 @@ static const std::vector<void (*)()> charm_init_node_funcs{
     &domain::creators::time_dependence::register_derived_with_charm,
     &domain::FunctionsOfTime::register_derived_with_charm,
     &ForceFree::BoundaryCorrections::register_derived_with_charm,
+    &ForceFree::fd::register_derived_with_charm,
     &register_factory_classes_with_charm<metavariables>};
 
 static const std::vector<void (*)()> charm_init_proc_funcs{

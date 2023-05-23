@@ -33,6 +33,9 @@
 #include "Evolution/DgSubcell/Tags/SubcellOptions.hpp"
 #include "Evolution/DgSubcell/Tags/TciGridHistory.hpp"
 #include "Evolution/DgSubcell/Tags/TciStatus.hpp"
+#include "Evolution/Imex/Tags/ImplicitHistory.hpp"
+#include "Evolution/Imex/Tags/SolveFailures.hpp"
+#include "Evolution/Imex/UsingImex.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "Parallel/AlgorithmExecution.hpp"
 #include "Time/History.hpp"
@@ -299,6 +302,29 @@ struct TciAndSwitchToDg {
             *subcell_cell_centered_fluxes = std::nullopt;
           },
           make_not_null(&box));
+
+      // FIXME : Here I'm assuming IMEX steppers are (always) substep methods.
+      // Is that all right?
+      if constexpr (::imex::using_imex_v<Metavariables>) {
+        using implicit_sector = typename Metavariables::system::ImplicitSector;
+        db::mutate<::imex::Tags::ImplicitHistory<implicit_sector>,
+                   ::imex::Tags::SolveFailures<implicit_sector>>(
+            [&dg_mesh, &subcell_mesh, &subcell_options](
+                const auto implicit_history_ptr,
+                const auto solve_failures_ptr) {
+              // Do we need an ASSERT check here?
+              implicit_history_ptr->map_entries(
+                  [&dg_mesh, &subcell_mesh,
+                   &subcell_options](const auto entry) {
+                    *entry = fd::reconstruct(
+                        *entry, dg_mesh, subcell_mesh.extents(),
+                        subcell_options.reconstruction_method());
+                  });
+              set_number_of_grid_points(solve_failures_ptr,
+                                        dg_mesh.number_of_grid_points());
+            },
+            make_not_null(&box));
+      }
       return {Parallel::AlgorithmExecution::Continue, std::nullopt};
     }
 
