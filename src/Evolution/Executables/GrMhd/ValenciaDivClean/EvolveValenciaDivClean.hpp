@@ -17,6 +17,7 @@
 #include "Evolution/ComputeTags.hpp"
 #include "Evolution/Conservative/UpdateConservatives.hpp"
 #include "Evolution/Conservative/UpdatePrimitives.hpp"
+#include "Evolution/DgSubcell/Actions/BackgroundGrVars.hpp"
 #include "Evolution/DgSubcell/Actions/Initialize.hpp"
 #include "Evolution/DgSubcell/Actions/Labels.hpp"
 #include "Evolution/DgSubcell/Actions/ReconstructionCommunication.hpp"
@@ -71,7 +72,6 @@
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/PalenzuelaEtAl.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/SetVariablesNeededFixingToFalse.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Subcell/FixConservativesAndComputePrims.hpp"
-#include "Evolution/Systems/GrMhd/ValenciaDivClean/Subcell/GrTagsForHydro.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Subcell/InitialDataTci.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Subcell/NeighborPackagedData.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Subcell/PrimitiveGhostData.hpp"
@@ -249,6 +249,7 @@ struct EvolutionMetavars {
       tmpl::append<
           typename system::variables_tag::tags_list,
           typename system::primitive_variables_tag::tags_list,
+          typename system::spacetime_variables_tag::tags_list,
           tmpl::list<grmhd::ValenciaDivClean::Tags::
                          ComovingMagneticFieldMagnitudeCompute>,
           error_tags,
@@ -413,6 +414,7 @@ struct EvolutionMetavars {
       Actions::Label<
           evolution::dg::subcell::Actions::Labels::BeginSubcellAfterDgRollback>,
       Actions::MutateApply<grmhd::ValenciaDivClean::subcell::SwapGrTags>,
+      evolution::dg::subcell::Actions::BackgroundGrVars<system, true>,
       Actions::MutateApply<grmhd::ValenciaDivClean::subcell::PrimsAfterRollback<
           ordered_list_of_primitive_recovery_schemes>>,
       Actions::MutateApply<evolution::dg::subcell::fd::CellCenteredFlux<
@@ -466,8 +468,8 @@ struct EvolutionMetavars {
               evolution::dg::subcell::Actions::Initialize<
                   volume_dim, system,
                   grmhd::ValenciaDivClean::subcell::DgInitialDataTci>,
+              evolution::dg::subcell::Actions::BackgroundGrVars<system, false>,
               Initialization::Actions::AddSimpleTags<
-                  Initialization::subcell::GrTagsForHydro<system, volume_dim>,
                   grmhd::ValenciaDivClean::SetVariablesNeededFixingToFalse>,
               Actions::MutateApply<
                   grmhd::ValenciaDivClean::subcell::SwapGrTags>,

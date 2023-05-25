@@ -1,0 +1,182 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+Executable: EvolveValenciaDivCleanTovStar
+Testing:
+  Check: parse;execute
+
+---
+
+ResourceInfo:
+  AvoidGlobalProc0: false
+  Singletons:
+    CenterOfStar:
+      Proc: Auto
+      Exclusive: false
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.0001
+  TimeStepper:
+    Heun2
+
+PhaseChangeAndTriggers:
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 1000
+          Offset: 5
+    PhaseChanges:
+      - VisitAndReturn(LoadBalancing)
+
+AnalyticSolution:
+  TovStar:
+    CentralDensity: 1.28e-3
+    EquationOfState:
+      PolytropicFluid:
+        PolytropicConstant: 100.0
+        PolytropicExponent: 2.0
+    Coordinates: Schwarzschild
+
+DomainCreator:
+  Brick:
+    LowerBound: [-20.0, -20.0, -16.0]
+    UpperBound: [20.0, 20.0, 16.0]
+    InitialRefinement: [2, 2, 2]
+    InitialGridPoints: [3, 3, 3]
+    TimeDependence: #None
+      UniformTranslation:
+        InitialTime: 0.0
+        Velocity: [0.5, 0.9, 0.0]
+    BoundaryConditionInX:
+      Periodic
+    BoundaryConditionInY:
+      Periodic
+    BoundaryConditionInZ:
+      Periodic
+
+VariableFixing:
+  FixConservatives:
+    CutoffD: 1.01e-15
+    MinimumValueOfD: 1.0e-15
+    CutoffYe: 1.0e-10
+    MinimumValueOfYe: 1.0e-10
+    SafetyFactorForB: 1.0e-12
+    SafetyFactorForS: 1.0e-12
+  FixToAtmosphere:
+    DensityOfAtmosphere: 1.0e-15
+    DensityCutoff: 1.01e-15
+    TransitionDensityCutoff: 1.0e-14
+    MaxVelocityMagnitude: 1.0e-4
+
+EvolutionSystem:
+  ValenciaDivClean:
+    DampingParameter: 1.0
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Hll:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+    Subcell:
+      RdmpDelta0: 1.0e-7
+      RdmpEpsilon: 1.0e-3
+      PerssonExponent: 4.0
+      InitialData:
+        RdmpDelta0: 1.0e-7
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 4.0
+      AlwaysUseSubcells: false
+      SubcellToDgReconstructionMethod: DimByDim
+      UseHalo: false
+      OnlyDgBlocksAndGroups: None
+      FiniteDifferenceDerivativeOrder: 2
+    TciOptions:
+      MinimumValueOfD: 1.0e-20
+      MinimumValueOfTildeTau: 1.0e-50
+      MinimumValueOfYe: 1.0e-20
+      AtmosphereDensity: 1.01e-15
+      SafetyFactorForB: 1.0e-12
+      MagneticFieldCutoff: DoNotCheckMagneticField
+  SubcellSolver:
+    Reconstructor:
+      # PositivityPreservingAdaptiveOrderPrim:
+      #   Alpha5: 3.8
+      #   Alpha7: None
+      #   Alpha9: None
+      #   LowOrderReconstructor: MonotonisedCentral
+      MonotonisedCentralPrim
+
+EventsAndTriggers:
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [10]
+    Events:
+      - Completion
+  # - Trigger:
+  #     Slabs:
+  #       EvenlySpaced:
+  #         Interval: 5
+  #         Offset: 0
+  #   Events:
+  #     - ChangeSlabSize:
+  #         DelayChange: 5
+  #         StepChoosers:
+  #           - Cfl:
+  #               SafetyFactor: 0.6
+  #           - Increase:
+  #               Factor: 1.5
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [0]
+    Events:
+      - ChangeSlabSize:
+          DelayChange: 0
+          StepChoosers:
+            - Cfl:
+                SafetyFactor: 0.5
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 2
+          Offset: 0
+    Events:
+      - ObserveTimeStep:
+          SubfileName: time_steps
+          PrintTimeToTerminal: true
+          ObservePerCore: false
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 2
+          Offset: 0
+    Events:
+      - ObserveFields:
+          SubfileName: VolumeData
+          VariablesToObserve:
+            - RestMassDensity
+            - Error(RestMassDensity)
+            - SpatialVelocity
+            - Lapse
+          InterpolateToMesh: None
+          CoordinatesFloatingPointType: Double
+          FloatingPointTypes: [Float]
+          OverrideObservationValue: None
+
+Observers:
+  VolumeFileName: "TovStarVolume"
+  ReductionFileName: "TovStarReductions"
+
+Interpolator:
+  DumpVolumeDataOnFailure: false
+
+InterpolationTargets:
+  CenterOfStar:
+    Points:
+
+EventsAndDenseTriggers:
+
+EventsRunAtCleanup:

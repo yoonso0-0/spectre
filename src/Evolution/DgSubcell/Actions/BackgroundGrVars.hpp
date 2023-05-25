@@ -100,14 +100,14 @@ struct BackgroundGrVars {
           get<domain::Tags::Domain<Dim>>(*box).blocks()[block_id];
 
       if (block.is_time_dependent()) {
-        db::mutate<subcell_gr_tag>(
-            box, [&time, &subcell_inertial_coords,
-                  &solution_or_data](auto subcell_gr_vars) {
-              subcell_gr_vars->assign_subset(
-                  evolution::Initialization::initial_data(
-                      solution_or_data, subcell_inertial_coords, time,
-                      typename GrVars::tags_list{}));
-            });
+        // Q. Why should we use gr_tag here for the correct behavior?
+        db::mutate<gr_tag>(box, [&time, &subcell_inertial_coords,
+                                 &solution_or_data](auto subcell_gr_vars) {
+          subcell_gr_vars->assign_subset(
+              evolution::Initialization::initial_data(
+                  solution_or_data, subcell_inertial_coords, time,
+                  typename GrVars::tags_list{}));
+        });
       }
     } else {
       // We need an allocation of GR variables only in the initialization phase.
