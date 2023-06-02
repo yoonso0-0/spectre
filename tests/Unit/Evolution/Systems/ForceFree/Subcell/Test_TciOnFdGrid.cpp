@@ -20,6 +20,7 @@
 #include "Evolution/DgSubcell/Tags/Mesh.hpp"
 #include "Evolution/DgSubcell/Tags/SubcellOptions.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/TciOnFdGrid.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TciOptions.hpp"
 #include "Evolution/Systems/ForceFree/System.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
@@ -33,6 +34,7 @@ enum class TestThis {
   PerssonMagTildeE,
   PerssonMagTildeB,
   PerssonTildeQ,
+  PerssonTildeQBelowCutoff,
   RdmpMagTildeE,
   RdmpMagTildeB,
   RdmpTildeQ
@@ -75,12 +77,15 @@ void test(const TestThis test_this, const int expected_tci_status) {
       std::nullopt,
       fd::DerivativeOrder::Two};
 
+  const ForceFree::subcell::TciOptions tci_options{1.0e-10};
+
   auto box = db::create<db::AddSimpleTags<
       ::Tags::Variables<VarsForTciTest::tags_list>, ::domain::Tags::Mesh<3>,
       ::evolution::dg::subcell::Tags::Mesh<3>,
+      ForceFree::subcell::Tags::TciOptions,
       evolution::dg::subcell::Tags::SubcellOptions<3>,
       evolution::dg::subcell::Tags::DataForRdmpTci>>(
-      subcell_vars, dg_mesh, subcell_mesh, subcell_options,
+      subcell_vars, dg_mesh, subcell_mesh, tci_options, subcell_options,
       evolution::dg::subcell::RdmpTciData{});
 
   const size_t point_to_change = subcell_mesh.number_of_grid_points() / 2;
@@ -105,6 +110,13 @@ void test(const TestThis test_this, const int expected_tci_status) {
     db::mutate<TildeQ>(
         [point_to_change](const auto tilde_q_ptr) {
           get(*tilde_q_ptr)[point_to_change] *= 10.0;
+        },
+        make_not_null(&box));
+  } else if (test_this == TestThis::PerssonTildeQBelowCutoff) {
+    db::mutate<TildeQ>(
+        [point_to_change](const auto tilde_q_ptr) {
+          get(*tilde_q_ptr)[point_to_change] *= 10.0;
+          get(*tilde_q_ptr) *= 1e-20;
         },
         make_not_null(&box));
   }
@@ -178,6 +190,7 @@ SPECTRE_TEST_CASE("Unit.Evolution.ForceFree.Subcell.TciOnFdGrid",
   test(TestThis::PerssonMagTildeE, 1);
   test(TestThis::PerssonMagTildeB, 2);
   test(TestThis::PerssonTildeQ, 3);
+  test(TestThis::PerssonTildeQBelowCutoff, 0);
   test(TestThis::RdmpMagTildeE, 4);
   test(TestThis::RdmpMagTildeB, 5);
   test(TestThis::RdmpTildeQ, 6);

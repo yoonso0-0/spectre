@@ -20,6 +20,7 @@
 #include "Evolution/DgSubcell/Tags/Mesh.hpp"
 #include "Evolution/DgSubcell/Tags/SubcellOptions.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/TciOnDgGrid.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TciOptions.hpp"
 #include "Evolution/Systems/ForceFree/System.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
@@ -33,6 +34,7 @@ enum class TestThis {
   PerssonMagTildeE,
   PerssonMagTildeB,
   PerssonTildeQ,
+  PerssonTildeQBelowCutoff,
   RdmpMagTildeE,
   RdmpMagTildeB,
   RdmpTildeQ
@@ -87,16 +89,19 @@ void test(const TestThis test_this, const int expected_tci_status) {
       std::nullopt,
       fd::DerivativeOrder::Two};
 
+  const ForceFree::subcell::TciOptions tci_options{1.0e-10};
+
   auto box = db::create<db::AddSimpleTags<
       ::Tags::Variables<VarsForTciTest::tags_list>, ::domain::Tags::Mesh<3>,
       ::evolution::dg::subcell::Tags::Mesh<3>,
       gr::Tags::SqrtDetSpatialMetric<DataVector>,
       gr::Tags::SpatialMetric<DataVector, 3>,
       gr::Tags::InverseSpatialMetric<DataVector, 3>,
+      ForceFree::subcell::Tags::TciOptions,
       evolution::dg::subcell::Tags::SubcellOptions<3>,
       evolution::dg::subcell::Tags::DataForRdmpTci>>(
       dg_vars, dg_mesh, subcell_mesh, sqrt_det_spatial_metric, spatial_metric,
-      inv_spatial_metric, subcell_options,
+      inv_spatial_metric, tci_options, subcell_options,
       evolution::dg::subcell::RdmpTciData{});
 
   const size_t point_to_change = dg_mesh.number_of_grid_points() / 2;
@@ -114,11 +119,16 @@ void test(const TestThis test_this, const int expected_tci_status) {
         },
         make_not_null(&box));
   } else if (test_this == TestThis::PerssonTildeQ) {
-    db::mutate<TildeQ>(
-        [point_to_change](const auto tilde_q_ptr) {
-          get(*tilde_q_ptr)[point_to_change] *= 2.0;
-        },
-        make_not_null(&box));
+    db::mutate<TildeQ>(make_not_null(&box),
+                       [point_to_change](const auto tilde_q_ptr) {
+                         get(*tilde_q_ptr)[point_to_change] *= 2.0;
+                       });
+  } else if (test_this == TestThis::PerssonTildeQBelowCutoff) {
+    db::mutate<TildeQ>(make_not_null(&box),
+                       [point_to_change](const auto tilde_q_ptr) {
+                         get(*tilde_q_ptr)[point_to_change] *= 2.0;
+                         get(*tilde_q_ptr) *= 1e-20;
+                       });
   }
 
   // Set the RDMP TCI past data.
@@ -184,6 +194,7 @@ SPECTRE_TEST_CASE("Unit.Evolution.ForceFree.Subcell.TciOnDgGrid",
   test(TestThis::PerssonMagTildeE, -1);
   test(TestThis::PerssonMagTildeB, -2);
   test(TestThis::PerssonTildeQ, -3);
+  test(TestThis::PerssonTildeQBelowCutoff, 0);
   test(TestThis::RdmpMagTildeE, -4);
   test(TestThis::RdmpMagTildeB, -5);
   test(TestThis::RdmpTildeQ, -6);

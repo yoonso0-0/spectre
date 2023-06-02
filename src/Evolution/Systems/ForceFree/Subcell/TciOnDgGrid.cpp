@@ -14,6 +14,7 @@
 #include "Evolution/DgSubcell/Projection.hpp"
 #include "Evolution/DgSubcell/RdmpTci.hpp"
 #include "Evolution/DgSubcell/RdmpTciData.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TciOptions.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "Utilities/Gsl.hpp"
 
@@ -25,6 +26,7 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnDgGrid::apply(
     const Scalar<DataVector>& tilde_q, const Mesh<3>& dg_mesh,
     const Mesh<3>& subcell_mesh,
     const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
+    const TciOptions& tci_options,
     const evolution::dg::subcell::SubcellOptions& subcell_options,
     const double persson_exponent, bool /*element_stays_on_dg*/) {
   evolution::dg::subcell::RdmpTciData rdmp_tci_data{};
@@ -89,13 +91,18 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnDgGrid::apply(
                                           persson_exponent)) {
     return {-1, std::move(rdmp_tci_data)};
   }
+
   if (evolution::dg::subcell::persson_tci(dg_mag_tilde_b, dg_mesh,
                                           persson_exponent)) {
     return {-2, std::move(rdmp_tci_data)};
   }
-  if (evolution::dg::subcell::persson_tci(tilde_q, dg_mesh, persson_exponent)) {
+
+  const double max_abs_tilde_q = max(abs(get(tilde_q)));
+  if ((max_abs_tilde_q > tci_options.cutoff_tilde_q) and
+      evolution::dg::subcell::persson_tci(tilde_q, dg_mesh, persson_exponent)) {
     return {-3, std::move(rdmp_tci_data)};
   }
+
   if (const int rdmp_tci_status = evolution::dg::subcell::rdmp_tci(
           rdmp_tci_data.max_variables_values,
           rdmp_tci_data.min_variables_values,

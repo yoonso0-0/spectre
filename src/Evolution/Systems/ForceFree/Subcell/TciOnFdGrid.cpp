@@ -23,6 +23,7 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
     const Scalar<DataVector>& subcell_tilde_q, const Mesh<3>& dg_mesh,
     const Mesh<3>& subcell_mesh,
     const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
+    const TciOptions& tci_options,
     const evolution::dg::subcell::SubcellOptions& subcell_options,
     const double persson_exponent, const bool need_rdmp_data_only) {
   const size_t num_dg_pts = dg_mesh.number_of_grid_points();
@@ -90,11 +91,14 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
                                           persson_exponent)) {
     return {+1, rdmp_tci_data};
   }
+
   if (evolution::dg::subcell::persson_tci(dg_mag_tilde_b, dg_mesh,
                                           persson_exponent)) {
     return {+2, rdmp_tci_data};
   }
-  if (evolution::dg::subcell::persson_tci(dg_tilde_q, dg_mesh,
+  const double max_abs_tilde_q = max(abs(get(dg_tilde_q)));
+  if ((max_abs_tilde_q > tci_options.cutoff_tilde_q) and
+      evolution::dg::subcell::persson_tci(dg_tilde_q, dg_mesh,
                                           persson_exponent)) {
     return {+3, rdmp_tci_data};
   }
