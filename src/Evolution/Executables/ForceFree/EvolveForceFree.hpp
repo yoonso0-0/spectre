@@ -79,6 +79,7 @@
 #include "Evolution/Systems/ForceFree/Subcell/SwapGrTags.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/TciOnDgGrid.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/TciOnFdGrid.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TciOptions.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/TimeDerivative.hpp"
 #include "Evolution/Systems/ForceFree/System.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
@@ -365,7 +366,8 @@ struct EvolutionMetavars {
   using const_global_cache_tags = tmpl::list<
       evolution::initial_data::Tags::InitialData,
       tmpl::conditional_t<use_dg_subcell,
-                          tmpl::list<ForceFree::fd::Tags::Reconstructor>,
+                          tmpl::list<ForceFree::fd::Tags::Reconstructor,
+                                     ForceFree::subcell::Tags::TciOptions>,
                           tmpl::list<>>,
       ForceFree::Tags::KappaPsi, ForceFree::Tags::KappaPhi,
       ForceFree::Tags::ParallelConductivity>;

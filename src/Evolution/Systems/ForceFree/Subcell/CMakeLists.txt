@@ -11,6 +11,7 @@ spectre_target_sources(
   SwapGrTags.cpp
   TciOnDgGrid.cpp
   TciOnFdGrid.cpp
+  TciOptions.cpp
   )
 
 spectre_target_headers(
@@ -25,4 +26,5 @@ spectre_target_headers(
   TciOnDgGrid.hpp
   TciOnFdGrid.hpp
   TimeDerivative.hpp
+  TciOptions.hpp
   )
