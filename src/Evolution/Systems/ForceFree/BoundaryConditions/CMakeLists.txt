@@ -6,6 +6,7 @@ spectre_target_sources(
   ${LIBRARY}
   PRIVATE
   BoundaryCondition.cpp
+  CopyFields.cpp
   DemandOutgoingCharSpeeds.cpp
   DirichletAnalytic.cpp
   )
@@ -15,6 +16,7 @@ spectre_target_headers(
   INCLUDE_DIRECTORY ${CMAKE_SOURCE_DIR}/src
   HEADERS
   BoundaryCondition.hpp
+  CopyFields.hpp
   DemandOutgoingCharSpeeds.hpp
   DirichletAnalytic.hpp
   Factory.hpp
