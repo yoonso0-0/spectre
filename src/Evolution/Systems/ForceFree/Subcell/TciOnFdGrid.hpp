@@ -17,6 +17,8 @@
 #include "PointwiseFunctions/GeneralRelativity/TagsDeclarations.hpp"
 #include "Utilities/TMPL.hpp"
 
+#include "Evolution/DgSubcell/Tags/Coordinates.hpp"
+
 /// \cond
 class DataVector;
 template <size_t Dim>
@@ -84,19 +86,22 @@ class TciOnFdGrid {
   using return_tags = tmpl::list<>;
   using argument_tags =
       tmpl::list<ForceFree::Tags::TildeE, ForceFree::Tags::TildeB,
-                 ForceFree::Tags::TildeQ, domain::Tags::Mesh<3>,
-                 evolution::dg::subcell::Tags::Mesh<3>,
+                 ForceFree::Tags::TildeQ, ForceFree::Tags::TildeJ,
+                 domain::Tags::Mesh<3>, evolution::dg::subcell::Tags::Mesh<3>,
                  evolution::dg::subcell::Tags::DataForRdmpTci, Tags::TciOptions,
-                 evolution::dg::subcell::Tags::SubcellOptions<3>>;
+                 evolution::dg::subcell::Tags::SubcellOptions<3>,
+                 evolution::dg::subcell::Tags::Coordinates<3, Frame::Inertial>>;
 
   static std::tuple<int, evolution::dg::subcell::RdmpTciData> apply(
       const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_e,
       const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_b,
-      const Scalar<DataVector>& subcell_tilde_q, const Mesh<3>& dg_mesh,
-      const Mesh<3>& subcell_mesh,
+      const Scalar<DataVector>& subcell_tilde_q,
+      const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_j,
+      const Mesh<3>& dg_mesh, const Mesh<3>& subcell_mesh,
       const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
       const TciOptions& tci_options,
       const evolution::dg::subcell::SubcellOptions& subcell_options,
+      const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_inertial_coords,
       double persson_exponent, bool need_rdmp_data_only);
 };
 

@@ -8,5 +8,8 @@
 #include "Utilities/Serialization/PupStlCpp17.hpp"
 
 namespace ForceFree::subcell {
-void TciOptions::pup(PUP::er& p) { p | cutoff_tilde_q; }
+void TciOptions::pup(PUP::er& p) {
+  p | cutoff_tilde_q;
+  p | cutoff_tilde_j;
+}
 }  // namespace ForceFree::subcell

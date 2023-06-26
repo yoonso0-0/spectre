@@ -20,16 +20,18 @@ namespace ForceFree::subcell {
 std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_e,
     const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_b,
-    const Scalar<DataVector>& subcell_tilde_q, const Mesh<3>& dg_mesh,
-    const Mesh<3>& subcell_mesh,
+    const Scalar<DataVector>& subcell_tilde_q,
+    const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_j,
+    const Mesh<3>& dg_mesh, const Mesh<3>& subcell_mesh,
     const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
     const TciOptions& tci_options,
     const evolution::dg::subcell::SubcellOptions& subcell_options,
+    const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_inertial_coords,
     const double persson_exponent, const bool need_rdmp_data_only) {
   const size_t num_dg_pts = dg_mesh.number_of_grid_points();
   const size_t num_subcell_pts = subcell_mesh.number_of_grid_points();
 
-  DataVector temp_buffer{3 * num_dg_pts + 2 * num_subcell_pts};
+  DataVector temp_buffer{4 * num_dg_pts + 3 * num_subcell_pts};
   size_t offset_into_temp_buffer = 0;
   const auto assign_data =
       [&temp_buffer, &offset_into_temp_buffer](
@@ -87,6 +89,23 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
       subcell_mesh.extents(),
       evolution::dg::subcell::fd::ReconstructionMethod::DimByDim);
 
+  // HECK for test ===========================================================
+  // bool inside_box = true;
+  // for (size_t i = 0; i < 3; ++i) {
+  //   if (min(abs(subcell_inertial_coords.get(i))) > 1.0) {
+  //     inside_box = false;
+  //   }
+  // }
+  // if (inside_box) {
+  //   return {+10, std::move(rdmp_tci_data)};
+  // }
+
+  // const bool close_to_plane = max(abs(subcell_inertial_coords.get(2))) < 2.0;
+  // if (close_to_plane) {
+  //   return {+10, std::move(rdmp_tci_data)};
+  // }
+  // =========================================================================
+
   if (evolution::dg::subcell::persson_tci(dg_mag_tilde_e, dg_mesh,
                                           persson_exponent)) {
     return {+1, rdmp_tci_data};
@@ -101,6 +120,25 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
       evolution::dg::subcell::persson_tci(dg_tilde_q, dg_mesh,
                                           persson_exponent)) {
     return {+3, rdmp_tci_data};
+  }
+
+  // TCI for J^i
+  Scalar<DataVector> subcell_mag_tilde_j{};
+  assign_data(make_not_null(&subcell_mag_tilde_j), num_subcell_pts);
+  magnitude(make_not_null(&subcell_mag_tilde_j), subcell_tilde_j);
+
+  Scalar<DataVector> dg_mag_tilde_j{};
+  assign_data(make_not_null(&dg_mag_tilde_j), num_dg_pts);
+  evolution::dg::subcell::fd::reconstruct(
+      make_not_null(&get(dg_mag_tilde_j)), get(subcell_mag_tilde_j), dg_mesh,
+      subcell_mesh.extents(),
+      evolution::dg::subcell::fd::ReconstructionMethod::DimByDim);
+
+  const double max_mag_tilde_j = max(abs(get(dg_mag_tilde_j)));
+  if ((max_mag_tilde_j > tci_options.cutoff_tilde_j) and
+      evolution::dg::subcell::persson_tci(dg_mag_tilde_j, dg_mesh,
+                                          persson_exponent)) {
+    return {+8, std::move(rdmp_tci_data)};
   }
 
   using std::max;
