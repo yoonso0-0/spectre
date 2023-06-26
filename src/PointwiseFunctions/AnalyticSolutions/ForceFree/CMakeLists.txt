@@ -9,6 +9,7 @@ spectre_target_sources(
   ${LIBRARY}
   PRIVATE
   AlfvenWave.cpp
+  ExactWald.cpp
   FastWave.cpp
   )
 
@@ -17,9 +18,11 @@ spectre_target_headers(
   INCLUDE_DIRECTORY ${CMAKE_SOURCE_DIR}/src
   HEADERS
   AlfvenWave.hpp
+  ExactWald.hpp
   Factory.hpp
   FastWave.hpp
   Solutions.hpp
+  WaldSolution.hpp
   )
 
 target_link_libraries(
