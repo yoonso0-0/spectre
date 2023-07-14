@@ -221,6 +221,7 @@ class ImplicitSolver {
     const TimeDelta& time_step = db::get<::Tags::TimeStep>(evolution_box);
     time_stepper.add_inhomogeneous_implicit_terms(
         make_not_null(&inhomogeneous_terms_), history, time_step);
+    completed_mutators_ = decltype(completed_mutators_){};
   }
 
   std::array<double, solve_dimension> operator()(

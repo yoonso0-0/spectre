@@ -37,6 +37,8 @@
 #include "Time/TimeSteppers/Heun2.hpp"
 #include "Utilities/ErrorHandling/Error.hpp"
 #include "Utilities/Gsl.hpp"
+#include "Utilities/Literals.hpp"
+#include "Utilities/MakeWithValue.hpp"
 #include "Utilities/ProtocolHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
@@ -554,6 +556,68 @@ void test_solve_implicit_sector(const imex::Mode solve_mode) {
   CHECK(db::get<history_tag>(box).size() == 1);
   CHECK(db::get<history_tag>(box).substeps().empty());
 }
+
+struct ResettingTestSector : tt::ConformsTo<imex::protocols::ImplicitSector> {
+  using tensors = tmpl::list<Var1>;
+
+  using tags_from_evolution = tmpl::list<Var2>;
+  using simple_tags = tmpl::list<>;
+  using compute_tags = tmpl::list<>;
+
+  using initial_guess_prep = tmpl::list<>;
+  using source_prep = tmpl::list<>;
+  using jacobian_prep = tmpl::list<>;
+
+  using initial_guess = imex::GuessExplicitResult;
+
+  struct source {
+    using return_tags = tmpl::list<::Tags::Source<Var1>>;
+    using argument_tags = tmpl::list<Var2>;
+
+    static void apply(const gsl::not_null<Scalar<DataVector>*> source_var1,
+                      const tnsr::II<DataVector, 2>& var2) {
+      get(*source_var1) = get<0, 0>(var2);
+    }
+  };
+
+  struct jacobian {
+    using return_tags = tmpl::list<>;
+    using argument_tags = tmpl::list<>;
+
+    static void apply() {}
+  };
+};
+
+// There was a bug where internal cached values did not clear properly
+// between points.
+void test_point_reseting() {
+  using variables_tag = ::Tags::Variables<tmpl::list<Var1>>;
+
+  const Slab slab(0.0, 2.0);
+  const auto time_step = slab.duration();
+
+  auto var2 = make_with_value<tnsr::II<DataVector, 2>>(2_st, 0.0);
+  get<0, 0>(var2) = DataVector{1.0, 2.0};
+
+  // Set the initial value and derivative to zero so we can ignore
+  // those terms in the time stepper equation.
+  variables_tag::type initial_value(2, 0.0);
+  TimeSteppers::History<variables_tag::type> history(2);
+  history.insert(TimeStepId(true, 0, slab.start()), decltype(history)::no_value,
+                 db::prefix_variables<Tags::dt, variables_tag::type>(2, 0.0));
+
+  auto box = db::create<db::AddSimpleTags<
+      Var2, variables_tag, imex::Tags::ImplicitHistory<ResettingTestSector>,
+      imex::Tags::Mode, Tags::TimeStepper<TimeSteppers::Heun2>,
+      Tags::TimeStep>>(var2, std::move(initial_value), std::move(history),
+                       imex::Mode::SemiImplicit,
+                       std::make_unique<TimeSteppers::Heun2>(), time_step);
+  imex::solve_implicit_sector<ResettingTestSector>(make_not_null(&box));
+
+  // The equation being solved is: y(dt) = dt/2 source(y(dt))
+  // where: dt = 2, source(y) = var2(0, 0)
+  CHECK_ITERABLE_APPROX(get(get<Var1>(box)), (get<0, 0>(var2)));
+}
 }  // namespace
 
 SPECTRE_TEST_CASE("Unit.Evolution.Imex.solve_implicit_sector",
@@ -565,4 +629,5 @@ SPECTRE_TEST_CASE("Unit.Evolution.Imex.solve_implicit_sector",
   test_solve_implicit_sector<true>(imex::Mode::Implicit);
   test_solve_implicit_sector<false>(imex::Mode::SemiImplicit);
   test_solve_implicit_sector<true>(imex::Mode::SemiImplicit);
+  test_point_reseting();
 }
