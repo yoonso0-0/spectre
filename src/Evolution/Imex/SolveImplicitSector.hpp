@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/PrefixHelpers.hpp"
@@ -32,6 +33,7 @@
 #include "Time/TimeSteppers/ImexTimeStepper.hpp"
 #include "Utilities/ErrorHandling/Assert.hpp"
 #include "Utilities/ErrorHandling/Error.hpp"
+#include "Utilities/ErrorHandling/Exceptions.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/ProtocolHelpers.hpp"
 #include "Utilities/StdArrayHelpers.hpp"
@@ -178,17 +180,16 @@ class ImplicitSolver {
       db::compute_databox_type<tmpl::append<simple_tags, compute_tags>>;
 
  public:
-  ImplicitSolver(const gsl::not_null<EvolutionBox*> evolution_box)
+  ImplicitSolver(const gsl::not_null<TimeSteppers::History<SectorVariables>*>
+                     implicit_history,
+                 const EvolutionBox& evolution_box)
       : solve_box_(db::create<simple_tags, compute_tags>()),
         // The implicit weight depends on on the step pattern, not on
         // any of the values in the history.
         implicit_weight_(
-            db::get<::Tags::TimeStepper<>>(*evolution_box)
-                .implicit_weight(
-                    make_not_null(&db::get_mutable_reference<
-                                  Tags::ImplicitHistory<ImplicitSector>>(
-                        evolution_box)),
-                    db::get<::Tags::TimeStep>(*evolution_box))) {
+            db::get<::Tags::TimeStepper<>>(evolution_box)
+                .implicit_weight(implicit_history,
+                                 db::get<::Tags::TimeStep>(evolution_box))) {
     db::mutate_apply<
         tmpl::push_front<
             tmpl::filter<
@@ -199,7 +200,7 @@ class ImplicitSolver {
         [&evolution_box](
             const gsl::not_null<const EvolutionBox**> evolution_box_pointer,
             const auto... vars) {
-          *evolution_box_pointer = &*evolution_box;
+          *evolution_box_pointer = &evolution_box;
           expand_pack((vars->initialize(1, 0.0), 0)...);
         },
         make_not_null(&solve_box_));
@@ -385,37 +386,38 @@ class ImplicitSolver {
       tmpl::transform<all_mutators, tmpl::bind<RanMutator, tmpl::_1>>>
       completed_mutators_{};
 };
-}  // namespace solve_implicit_sector_detail
 
-/// Perform the implicit solve for one implicit sector.
-///
-/// This will update the tensors in the implicit sector and clean up
-/// the corresponding time stepper history.  A new history entry is
-/// not added, because that should be done with the same values of the
-/// variables used for the explicit portion of the time derivative,
-/// which may still undergo variable-fixing-like corrections.
 template <typename ImplicitSector, typename DbTags>
-void solve_implicit_sector(const gsl::not_null<db::DataBox<DbTags>*> box) {
+void solve_implicit_sector_impl(
+    const gsl::not_null<db::DataBox<DbTags>*> box,
+    const gsl::not_null<
+        TimeSteppers::History<Variables<typename ImplicitSector::tensors>>*>
+        implicit_history,
+    const gsl::not_null<std::vector<bool>*> solved_points,
+    const gsl::not_null<Matrix*> scratch_matrix) {
+  using fallback_sector = typename ImplicitSector::fallback;
+  constexpr bool have_fallback =
+      not std::is_same_v<fallback_sector, NoFallback>;
+
   using ImplicitVars = Variables<typename ImplicitSector::tensors>;
-  // The only change to the box done by this class is expiring old
-  // history entries.
+  // The only change to the history done by this class is expiring old
+  // entries.
   solve_implicit_sector_detail::ImplicitSolver<ImplicitSector,
                                                db::DataBox<DbTags>>
-      solver(box);
+      solver(implicit_history, *box);
 
-  Matrix semi_implicit_jacobian{};
+  const size_t number_of_grid_points = solved_points->size();
 
-  const size_t number_of_grid_points =
-      db::get<tmpl::front<typename ImplicitSector::tensors>>(*box)
-          .begin()
-          ->size();
-  auto& implicit_history =
-      db::get_mutable_reference<imex::Tags::ImplicitHistory<ImplicitSector>>(
-          box);
-  using History = std::decay_t<decltype(implicit_history)>;
+  bool had_failure = false;
   for (size_t point = 0; point < number_of_grid_points; ++point) {
-    History pointwise_history{};
-    transform(make_not_null(&pointwise_history), implicit_history,
+    // This is always false unless there has been a failure.  After
+    // that it's probably true, but that should be a rare situation so
+    // we don't optimize for it.
+    if (UNLIKELY((*solved_points)[point])) {
+      continue;
+    }
+    TimeSteppers::History<ImplicitVars> pointwise_history{};
+    transform(make_not_null(&pointwise_history), *implicit_history,
               [&](const auto& v) { return extract_point(v, point); });
 
     std::array<double, ImplicitVars::number_of_independent_components>
@@ -431,10 +433,19 @@ void solve_implicit_sector(const gsl::not_null<db::DataBox<DbTags>*> box) {
           // FIXME where should these be specified?
           const double tolerance = 1.0e-10;
           const size_t max_iterations = 100;
-          pointwise_vars_array = RootFinder::gsl_multiroot(
-              solver, solver.initial_guess(),
-              RootFinder::StoppingConditions::Residual(tolerance),
-              max_iterations);
+          try {
+            pointwise_vars_array = RootFinder::gsl_multiroot(
+                solver, solver.initial_guess(),
+                RootFinder::StoppingConditions::Residual(tolerance),
+                max_iterations);
+          } catch (const convergence_error&) {
+            if constexpr (have_fallback) {
+              had_failure = true;
+              continue;
+            } else {
+              throw;
+            }
+          }
           break;
         }
         case Mode::SemiImplicit: {
@@ -443,6 +454,7 @@ void solve_implicit_sector(const gsl::not_null<db::DataBox<DbTags>*> box) {
           DataVector correction(correction_array.data(),
                                 correction_array.size());
           correction *= -1.0;
+          Matrix& semi_implicit_jacobian = *scratch_matrix;
           semi_implicit_jacobian = solver.jacobian(initial_guess);
           const int lapack_info = lapack::general_matrix_linear_solve(
               &correction, &semi_implicit_jacobian);
@@ -450,8 +462,13 @@ void solve_implicit_sector(const gsl::not_null<db::DataBox<DbTags>*> box) {
             if (lapack_info < 0) {
               ERROR("LAPACK invalid argument: " << -lapack_info);
             } else {
-              ERROR("Semi-implicit inversion was singular at\n"
-                    << pointwise_vars);
+              if constexpr (have_fallback) {
+                had_failure = true;
+                continue;
+              } else {
+                ERROR("Semi-implicit inversion was singular at\n"
+                      << pointwise_vars);
+              }
             }
           }
           pointwise_vars_array = initial_guess + correction_array;
@@ -476,6 +493,37 @@ void solve_implicit_sector(const gsl::not_null<db::DataBox<DbTags>*> box) {
               });
         },
         box);
+    (*solved_points)[point] = true;
   }
+
+  if constexpr (have_fallback) {
+    if (had_failure) {
+      solve_implicit_sector_impl<fallback_sector>(
+          box, implicit_history, solved_points, scratch_matrix);
+    }
+  }
+}
+}  // namespace solve_implicit_sector_detail
+
+/// Perform the implicit solve for one implicit sector.
+///
+/// This will update the tensors in the implicit sector and clean up
+/// the corresponding time stepper history.  A new history entry is
+/// not added, because that should be done with the same values of the
+/// variables used for the explicit portion of the time derivative,
+/// which may still undergo variable-fixing-like corrections.
+template <typename ImplicitSector, typename DbTags>
+void solve_implicit_sector(const gsl::not_null<db::DataBox<DbTags>*> box) {
+  auto& implicit_history =
+      db::get_mutable_reference<imex::Tags::ImplicitHistory<ImplicitSector>>(
+          box);
+  const size_t number_of_grid_points =
+      db::get<tmpl::front<typename ImplicitSector::tensors>>(*box)
+          .begin()
+          ->size();
+  std::vector<bool> solved_points(number_of_grid_points, false);
+  Matrix scratch_matrix{};
+  solve_implicit_sector_detail::solve_implicit_sector_impl<ImplicitSector>(
+      box, &implicit_history, &solved_points, &scratch_matrix);
 }
 }  // namespace imex

@@ -274,6 +274,8 @@ struct ImplicitSector : tt::ConformsTo<imex::protocols::ImplicitSector> {
   using jacobian =
       tmpl::conditional_t<TestWithAnalyticSolution,
                           imex::NoJacobianBecauseSolutionIsAnalytic, Jacobian>;
+
+  using fallback = imex::NoFallback;
 };
 // [ImplicitSector]
 
@@ -322,23 +324,19 @@ void test_internal_jacobian_ordering() {
                  db::prefix_variables<Tags::dt, SectorVariables>(1, 3.0));
 
   auto values = arbitrary_test_values();
-  auto evolution_box = db::create<db::AddSimpleTags<
-      Tags::TimeStepper<TimeSteppers::Heun2>, Tags::TimeStep,
-      imex::Tags::ImplicitHistory<sector>, sector_variables_tag, Var1,
-      NonTensor, VariablesFromEvolution>>(
-      std::make_unique<TimeSteppers::Heun2>(), slab.duration(),
-      std::move(history), std::move(get<sector_variables_tag>(values)),
-      std::move(get<Var1>(values)), get<NonTensor>(values),
-      std::move(get<VariablesFromEvolution>(values)));
+  auto evolution_box =
+      db::create<db::AddSimpleTags<Tags::TimeStepper<TimeSteppers::Heun2>,
+                                   Tags::TimeStep, sector_variables_tag, Var1,
+                                   NonTensor, VariablesFromEvolution>>(
+          std::make_unique<TimeSteppers::Heun2>(), slab.duration(),
+          std::move(get<sector_variables_tag>(values)),
+          std::move(get<Var1>(values)), get<NonTensor>(values),
+          std::move(get<VariablesFromEvolution>(values)));
 
   imex::solve_implicit_sector_detail::ImplicitSolver<
       sector, std::decay_t<decltype(evolution_box)>>
-      solver(&evolution_box);
-  solver.set_index(
-      make_not_null(
-          &db::get_mutable_reference<imex::Tags::ImplicitHistory<sector>>(
-              make_not_null(&evolution_box))),
-      0);
+      solver(&history, evolution_box);
+  solver.set_index(&history, 0);
   solver.compute_initial_guess();
   const auto initial_guess = solver.initial_guess();
   const auto jacobian = solver.jacobian(initial_guess);
@@ -586,6 +584,8 @@ struct ResettingTestSector : tt::ConformsTo<imex::protocols::ImplicitSector> {
 
     static void apply() {}
   };
+
+  using fallback = imex::NoFallback;
 };
 
 // There was a bug where internal cached values did not clear properly
@@ -618,6 +618,87 @@ void test_point_reseting() {
   // where: dt = 2, source(y) = var2(0, 0)
   CHECK_ITERABLE_APPROX(get(get<Var1>(box)), (get<0, 0>(var2)));
 }
+
+struct DesiredLevel : db::SimpleTag {
+  using type = Scalar<DataVector>;
+};
+
+template <int Level>
+struct SectorWithFallback : tt::ConformsTo<imex::protocols::ImplicitSector> {
+  using tensors = tmpl::list<Var1>;
+
+  using tags_from_evolution = tmpl::list<DesiredLevel>;
+  using simple_tags = tmpl::list<>;
+  using compute_tags = tmpl::list<>;
+
+  using initial_guess_prep = tmpl::list<>;
+  using source_prep = tmpl::list<>;
+  using jacobian_prep = tmpl::list<>;
+
+  using initial_guess = imex::GuessExplicitResult;
+
+  struct source {
+    using return_tags = tmpl::list<::Tags::Source<Var1>>;
+    using argument_tags = tmpl::list<DesiredLevel>;
+
+    static void apply(const gsl::not_null<Scalar<DataVector>*> source_var1,
+                      const Scalar<DataVector>& desired_level) {
+      CHECK(get(desired_level)[0] <= Level);
+      get(*source_var1) = Level;
+    }
+  };
+
+  struct jacobian {
+    using return_tags =
+        tmpl::list<imex::Tags::Jacobian<Var1, ::Tags::Source<Var1>>>;
+    using argument_tags = tmpl::list<DesiredLevel>;
+
+    static void apply(const gsl::not_null<Scalar<DataVector>*> dvar1_dvar1,
+                      const Scalar<DataVector>& desired_level) {
+      if (get(desired_level)[0] == Level) {
+        get(*dvar1_dvar1) = 0.0;
+      } else {
+        // Cause a failure from a non-invertable y = y + constant
+        get(*dvar1_dvar1) = 1.0;
+      }
+    }
+  };
+
+  using fallback =
+      tmpl::conditional_t<(Level > 1), SectorWithFallback<Level - 1>,
+                          imex::NoFallback>;
+};
+
+void test_fallback() {
+  using sector = SectorWithFallback<4>;
+  using variables_tag = ::Tags::Variables<tmpl::list<Var1>>;
+  using history_tag = imex::Tags::ImplicitHistory<sector>;
+
+  const Slab slab(0.0, 2.0);
+  const auto time_step = slab.duration();
+  const Scalar<DataVector> desired_level{{{{1.0, 3.0, 4.0, 4.0, 3.0}}}};
+  const size_t number_of_grid_points = get(desired_level).size();
+
+  // Set the initial value and derivative to zero so we can ignore
+  // those terms in the time stepper equation.
+  variables_tag::type initial_value(number_of_grid_points, 0.0);
+  TimeSteppers::History<variables_tag::type> history(2);
+  history.insert(TimeStepId(true, 0, slab.start()), decltype(history)::no_value,
+                 db::prefix_variables<Tags::dt, variables_tag::type>(
+                     number_of_grid_points, 0.0));
+
+  auto box = db::create<db::AddSimpleTags<
+      DesiredLevel, variables_tag, history_tag, imex::Tags::Mode,
+      Tags::TimeStepper<TimeSteppers::Heun2>, Tags::TimeStep>>(
+      desired_level, std::move(initial_value), std::move(history),
+      imex::Mode::SemiImplicit, std::make_unique<TimeSteppers::Heun2>(),
+      time_step);
+  imex::solve_implicit_sector<sector>(make_not_null(&box));
+
+  // The equation being solved is: y(dt) = dt/2 source(y(dt))
+  // where: dt = 2, source(y) = desired_level
+  CHECK_ITERABLE_APPROX(get(get<Var1>(box)), get(desired_level));
+}
 }  // namespace
 
 SPECTRE_TEST_CASE("Unit.Evolution.Imex.solve_implicit_sector",
@@ -630,4 +711,5 @@ SPECTRE_TEST_CASE("Unit.Evolution.Imex.solve_implicit_sector",
   test_solve_implicit_sector<false>(imex::Mode::SemiImplicit);
   test_solve_implicit_sector<true>(imex::Mode::SemiImplicit);
   test_point_reseting();
+  test_fallback();
 }

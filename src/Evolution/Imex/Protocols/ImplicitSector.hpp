@@ -5,6 +5,7 @@
 
 #include <type_traits>
 
+#include "Utilities/ProtocolHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TypeTraits/IsA.hpp"
 
@@ -17,6 +18,12 @@ template <typename Tag>
 struct Source;
 }  // namespace Tags
 /// \endcond
+
+namespace imex {
+/// Incomplete type indicating that a sector should error if a solve
+/// fails.  Any chain of sector fallbacks must end with this type.
+struct NoFallback;
+}  // namespace imex
 
 namespace imex::protocols {
 /// Protocol for an implicit sector of an IMEX system.
@@ -57,6 +64,12 @@ namespace imex::protocols {
 ///   are only used during the implicit solve, and any preparation needed
 ///   before the `source` call in the main action loop to record the history
 ///   is the responsibility of the user.
+/// * a `fallback` type indicating what to do in case of a failure.  It may be
+///   either another ImplicitSector with the same tensors or the type
+///   `NoFallback`.  If the solve fails for any point it will be retried with
+///   the fallback sector.  Fallbacks do not affect the source value used in
+///   the history for future substeps, which is always calculated using the
+///   main sector.
 ///
 /// All `Variables` in the DataBox, including the sources and source
 /// jacobian, will be initialized to zero with a single grid point.
@@ -78,6 +91,8 @@ struct ImplicitSector {
     using source_prep = typename ConformingType::source_prep;
     using jacobian_prep = typename ConformingType::jacobian_prep;
     using initial_guess_prep = typename ConformingType::initial_guess_prep;
+
+    using fallback = typename ConformingType::fallback;
 
     static_assert(tt::is_a_v<tmpl::list, tensors>);
     static_assert(tt::is_a_v<tmpl::list, tags_from_evolution>);
@@ -117,6 +132,20 @@ struct ImplicitSector {
                   "Do not include tags for Tensor<DataVector> in simple_tags, "
                   "because they trigger many memory allocations.  Add the "
                   "tensors as part of a Variables instead.");
+
+    template <typename Fallback>
+    struct check_fallback {
+      static constexpr bool value =
+          tt::assert_conforms_to_v<Fallback, ImplicitSector> and
+          std::is_same_v<tensors, typename Fallback::tensors>;
+    };
+
+    template <>
+    struct check_fallback<NoFallback> {
+      static constexpr bool value = true;
+    };
+
+    static_assert(check_fallback<fallback>::value);
   };
 };
 }  // namespace imex::protocols

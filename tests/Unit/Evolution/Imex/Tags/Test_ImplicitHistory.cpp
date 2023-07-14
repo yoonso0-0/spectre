@@ -18,6 +18,7 @@ struct Sector : tt::ConformsTo<imex::protocols::ImplicitSector> {
   using source_prep = tmpl::list<>;
   using jacobian_prep = tmpl::list<>;
   using initial_guess_prep = tmpl::list<>;
+  using fallback = imex::NoFallback;
 
   struct source {
     using return_tags = tmpl::list<>;

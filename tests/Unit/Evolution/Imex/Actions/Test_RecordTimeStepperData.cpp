@@ -69,6 +69,35 @@ struct Sector1 : tt::ConformsTo<imex::protocols::ImplicitSector> {
   using source_prep = tmpl::list<>;
   using jacobian_prep = tmpl::list<>;
   using initial_guess_prep = tmpl::list<>;
+  using fallback = imex::NoFallback;
+};
+
+struct Fallback : tt::ConformsTo<imex::protocols::ImplicitSector> {
+  using tensors = tmpl::list<Var2, Var3>;
+
+  struct source {
+    using return_tags = tmpl::list<Tags::Source<Var3>, Tags::Source<Var2>>;
+    using argument_tags = tmpl::list<>;
+    static void apply(const gsl::not_null<Scalar<DataVector>*> /*source3*/,
+                      const gsl::not_null<Scalar<DataVector>*> /*source2*/) {
+      CHECK(false);
+    }
+  };
+
+  struct jacobian {
+    using return_tags = tmpl::list<>;
+    using argument_tags = tmpl::list<>;
+    static void apply();
+  };
+
+  using initial_guess = imex::GuessExplicitResult;
+  using tags_from_evolution = tmpl::list<>;
+  using simple_tags = tmpl::list<>;
+  using compute_tags = tmpl::list<>;
+  using source_prep = tmpl::list<>;
+  using jacobian_prep = tmpl::list<>;
+  using initial_guess_prep = tmpl::list<>;
+  using fallback = imex::NoFallback;
 };
 
 struct Sector2 : tt::ConformsTo<imex::protocols::ImplicitSector> {
@@ -98,6 +127,9 @@ struct Sector2 : tt::ConformsTo<imex::protocols::ImplicitSector> {
   using source_prep = tmpl::list<>;
   using jacobian_prep = tmpl::list<>;
   using initial_guess_prep = tmpl::list<>;
+
+  // Should be ignored
+  using fallback = Fallback;
 };
 
 struct System : tt::ConformsTo<imex::protocols::ImexSystem> {
