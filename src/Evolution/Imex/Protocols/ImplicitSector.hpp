@@ -26,6 +26,24 @@ struct NoFallback;
 }  // namespace imex
 
 namespace imex::protocols {
+/// \cond
+struct ImplicitSector;
+/// \endcond
+
+namespace ImplicitSector_detail {
+template <typename Sector, typename Fallback = typename Sector::fallback>
+struct check_fallback {
+  static constexpr bool value =
+      tt::assert_conforms_to_v<Fallback, ImplicitSector> and
+      std::is_same_v<typename Sector::tensors, typename Fallback::tensors>;
+};
+
+template <typename Sector>
+struct check_fallback<Sector, NoFallback> {
+  static constexpr bool value = true;
+};
+}  // namespace ImplicitSector_detail
+
 /// Protocol for an implicit sector of an IMEX system.
 ///
 /// An implicit sector describes the sources for one implicit solve
@@ -133,19 +151,7 @@ struct ImplicitSector {
                   "because they trigger many memory allocations.  Add the "
                   "tensors as part of a Variables instead.");
 
-    template <typename Fallback>
-    struct check_fallback {
-      static constexpr bool value =
-          tt::assert_conforms_to_v<Fallback, ImplicitSector> and
-          std::is_same_v<tensors, typename Fallback::tensors>;
-    };
-
-    template <>
-    struct check_fallback<NoFallback> {
-      static constexpr bool value = true;
-    };
-
-    static_assert(check_fallback<fallback>::value);
+    static_assert(ImplicitSector_detail::check_fallback<ConformingType>::value);
   };
 };
 }  // namespace imex::protocols
