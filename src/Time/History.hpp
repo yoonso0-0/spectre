@@ -1007,8 +1007,7 @@ void transform(const gsl::not_null<History<DestVars>*> dest,
   }
 
   const auto transform_record =
-      [&derivative_transformer, &value_transformer](
-          const gsl::not_null<History<DestVars>*> dest,
+      [&derivative_transformer, &dest, &value_transformer](
           const typename History<SourceVars>::value_type& record) {
         if constexpr (std::is_invocable_v<ValueTransformer,
                                           gsl::not_null<DestVars*>,
@@ -1046,13 +1045,13 @@ void transform(const gsl::not_null<History<DestVars>*> dest,
 
   auto copying_step = source.begin();
   for (; copying_step != pre_substep_end; ++copying_step) {
-    transform_record(dest, *copying_step);
+    transform_record(*copying_step);
   }
   for (const auto& record : source.substeps()) {
-    transform_record(dest, record);
+    transform_record(record);
   }
   if (pre_substep_end != source.end()) {
-    transform_record(dest, *pre_substep_end);
+    transform_record(*pre_substep_end);
   }
 }
 
