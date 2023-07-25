@@ -13,6 +13,7 @@ spectre_target_sources(
   ElectricCurrentDensity.cpp
   ElectromagneticVariables.cpp
   Fluxes.cpp
+  NsInteriorSpatialVelocity.cpp
   Sources.cpp
   SpectralFilter.cpp
   TimeDerivativeTerms.cpp
@@ -28,6 +29,7 @@ spectre_target_headers(
   ElectromagneticVariables.hpp
   Fluxes.hpp
   MaskNeutronStarInterior.hpp
+  NsInteriorSpatialVelocity.hpp
   Sources.hpp
   System.hpp
   Tags.hpp
