@@ -41,6 +41,7 @@
 #include "Evolution/Systems/ForceFree/Constraints.hpp"
 #include "Evolution/Systems/ForceFree/ElectricCurrentDensity.hpp"
 #include "Evolution/Systems/ForceFree/ElectromagneticVariables.hpp"
+#include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
 #include "Evolution/Systems/ForceFree/System.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "IO/Observer/Actions/RegisterEvents.hpp"
@@ -220,6 +221,9 @@ struct EvolutionMetavars {
       Initialization::Actions::ConservativeSystem<system>,
       evolution::Initialization::Actions::SetVariables<
           domain::Tags::Coordinates<3, Frame::ElementLogical>>,
+
+      Initialization::Actions::AddSimpleTags<
+          ForceFree::MaskNeutronStarInterior<EvolutionMetavars, false>>,
 
       Initialization::Actions::AddComputeTags<
           tmpl::list<ForceFree::Tags::TildeESquaredCompute,

@@ -27,6 +27,7 @@ spectre_target_headers(
   ElectricCurrentDensity.hpp
   ElectromagneticVariables.hpp
   Fluxes.hpp
+  MaskNeutronStarInterior.hpp
   Sources.hpp
   System.hpp
   Tags.hpp

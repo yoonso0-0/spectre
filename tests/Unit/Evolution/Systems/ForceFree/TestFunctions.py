@@ -53,3 +53,16 @@ def magnetic_dominance_violation_compute(
 
 
 # end functions for testing Constraints
+
+
+# Functions for testing MaskNeutronStarInterior
+def compute_ns_interior_mask(coords):
+    r_squared = np.einsum("a, a", coords, coords)
+
+    if r_squared < 1.0:
+        return -1.0
+    else:
+        return 1.0
+
+
+# end functions for testing MaskNeutronStarInterior
