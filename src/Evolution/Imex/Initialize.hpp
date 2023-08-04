@@ -7,6 +7,7 @@
 #include "Evolution/Imex/Tags/ImplicitHistory.hpp"
 #include "Evolution/Imex/Tags/Mode.hpp"
 #include "Evolution/Imex/Tags/SolveFailures.hpp"
+#include "Evolution/Imex/Tags/SolveTolerance.hpp"
 #include "Time/History.hpp"
 #include "Time/Tags/HistoryEvolvedVariables.hpp"
 #include "Utilities/Gsl.hpp"
@@ -25,7 +26,7 @@ struct Initialize<System, tmpl::list<Sectors...>> {
   using example_tensor_tag =
       tmpl::front<typename tmpl::front<tmpl::list<Sectors...>>::tensors>;
 
-  using const_global_cache_tags = tmpl::list<Tags::Mode>;
+  using const_global_cache_tags = tmpl::list<Tags::Mode, Tags::SolveTolerance>;
   using mutable_global_cache_tags = tmpl::list<>;
   using simple_tags_from_options = tmpl::list<>;
   using simple_tags = tmpl::list<Tags::ImplicitHistory<Sectors>...,

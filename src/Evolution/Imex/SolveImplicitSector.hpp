@@ -43,6 +43,7 @@ namespace imex::Tags {
 struct Mode;
 template <typename Sector>
 struct SolveFailures;
+struct SolveTolerance;
 }  // namespace imex::Tags
 namespace Tags {
 struct TimeStep;
@@ -433,8 +434,7 @@ void solve_implicit_sector_impl(
     } else {
       switch (db::get<Tags::Mode>(*box)) {
         case Mode::Implicit: {
-          // FIXME where should these be specified?
-          const double tolerance = 1.0e-10;
+          const double tolerance = db::get<Tags::SolveTolerance>(*box);
           const size_t max_iterations = 100;
           try {
             pointwise_vars_array = RootFinder::gsl_multiroot(

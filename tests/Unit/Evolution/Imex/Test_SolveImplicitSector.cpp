@@ -27,6 +27,7 @@
 #include "Evolution/Imex/Tags/Jacobian.hpp"
 #include "Evolution/Imex/Tags/Mode.hpp"
 #include "Evolution/Imex/Tags/SolveFailures.hpp"
+#include "Evolution/Imex/Tags/SolveTolerance.hpp"
 #include "Framework/TestHelpers.hpp"
 #include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "Helpers/Evolution/Imex/TestSector.hpp"
@@ -390,11 +391,12 @@ void test_solve_implicit_sector(const imex::Mode solve_mode) {
   auto box = db::create<db::AddSimpleTags<
       variables_tag, NonTensor, VariablesFromEvolution,
       Tags::TimeStepper<TimeSteppers::Heun2>, Tags::TimeStep, history_tag,
-      imex::Tags::Mode, imex::Tags::SolveFailures<sector>>>(
+      imex::Tags::Mode, imex::Tags::SolveFailures<sector>,
+      imex::Tags::SolveTolerance>>(
       initial_vars, non_tensor, VariablesFromEvolution::type{},
       std::make_unique<TimeSteppers::Heun2>(), time_step,
       typename history_tag::type{2}, solve_mode,
-      Scalar<DataVector>(DataVector(number_of_grid_points, 0.0)));
+      Scalar<DataVector>(DataVector(number_of_grid_points, 0.0)), 1.0e-10);
 
   // Perform updates as if taking an explicit step.
   const auto simulate_explicit_step = [&dist, &gen, &initial_vars](
@@ -613,10 +615,11 @@ void test_point_reseting() {
   auto box = db::create<db::AddSimpleTags<
       Var2, variables_tag, imex::Tags::ImplicitHistory<ResettingTestSector>,
       imex::Tags::Mode, Tags::TimeStepper<TimeSteppers::Heun2>, Tags::TimeStep,
-      imex::Tags::SolveFailures<ResettingTestSector>>>(
+      imex::Tags::SolveFailures<ResettingTestSector>,
+      imex::Tags::SolveTolerance>>(
       var2, std::move(initial_value), std::move(history),
       imex::Mode::SemiImplicit, std::make_unique<TimeSteppers::Heun2>(),
-      time_step, Scalar<DataVector>(DataVector(2, 0.0)));
+      time_step, Scalar<DataVector>(DataVector(2, 0.0)), 1.0e-10);
   imex::solve_implicit_sector<ResettingTestSector>(make_not_null(&box));
 
   // The equation being solved is: y(dt) = dt/2 source(y(dt))
@@ -695,10 +698,11 @@ void test_fallback() {
   auto box = db::create<db::AddSimpleTags<
       DesiredLevel, variables_tag, history_tag, imex::Tags::Mode,
       Tags::TimeStepper<TimeSteppers::Heun2>, Tags::TimeStep,
-      imex::Tags::SolveFailures<sector>>>(
+      imex::Tags::SolveFailures<sector>, imex::Tags::SolveTolerance>>(
       desired_level, std::move(initial_value), std::move(history),
       imex::Mode::SemiImplicit, std::make_unique<TimeSteppers::Heun2>(),
-      time_step, Scalar<DataVector>(DataVector(number_of_grid_points, 0.0)));
+      time_step, Scalar<DataVector>(DataVector(number_of_grid_points, 0.0)),
+      1.0e-10);
   imex::solve_implicit_sector<sector>(make_not_null(&box));
 
   // The equation being solved is: y(dt) = dt/2 source(y(dt))

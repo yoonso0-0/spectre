@@ -23,6 +23,7 @@
 #include "Evolution/Imex/Tags/ImplicitHistory.hpp"
 #include "Evolution/Imex/Tags/Mode.hpp"
 #include "Evolution/Imex/Tags/SolveFailures.hpp"
+#include "Evolution/Imex/Tags/SolveTolerance.hpp"
 #include "Framework/ActionTesting.hpp"
 #include "Parallel/Phase.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"
@@ -92,14 +93,13 @@ struct Component {
   using metavariables = Metavariables;
   using chare_type = ActionTesting::MockArrayChare;
   using array_index = int;
-  using simple_tags =
-      db::AddSimpleTags<Tags::TimeStepId, Tags::TimeStep, System::variables_tag,
-                        imex::Tags::Mode,
-                        Tags::TimeStepper<TimeSteppers::Heun2>,
-                        imex::Tags::ImplicitHistory<Sector<Var1>>,
-                        imex::Tags::ImplicitHistory<Sector<Var2>>,
-                        imex::Tags::SolveFailures<Sector<Var1>>,
-                        imex::Tags::SolveFailures<Sector<Var2>>>;
+  using simple_tags = db::AddSimpleTags<
+      Tags::TimeStepId, Tags::TimeStep, System::variables_tag, imex::Tags::Mode,
+      Tags::TimeStepper<TimeSteppers::Heun2>,
+      imex::Tags::ImplicitHistory<Sector<Var1>>,
+      imex::Tags::ImplicitHistory<Sector<Var2>>,
+      imex::Tags::SolveFailures<Sector<Var1>>,
+      imex::Tags::SolveFailures<Sector<Var2>>, imex::Tags::SolveTolerance>;
 
   using compute_tags = db::AddComputeTags<>;
   using phase_dependent_action_list = tmpl::list<
@@ -142,6 +142,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.Imex.Actions.DoImplicitStep",
   Scalar<DataVector> solve_failures1(DataVector(number_of_grid_points, 0.0));
   Scalar<DataVector> solve_failures2(DataVector(number_of_grid_points, 0.0));
 
+  const double tolerance = 1.0e-10;
+
   ActionTesting::MockRuntimeSystem<Metavariables> runner{{}};
 
   ActionTesting::emplace_component_and_initialize<component>(
@@ -149,7 +151,7 @@ SPECTRE_TEST_CASE("Unit.Evolution.Imex.Actions.DoImplicitStep",
       {time_step_id, time_step, initial_vars, imex::Mode::Implicit,
        std::make_unique<TimeSteppers::Heun2>(), std::move(history1),
        std::move(history2), std::move(solve_failures1),
-       std::move(solve_failures2)});
+       std::move(solve_failures2), tolerance});
   ActionTesting::set_phase(make_not_null(&runner), Parallel::Phase::Testing);
   runner.next_action<component>(0);
 
