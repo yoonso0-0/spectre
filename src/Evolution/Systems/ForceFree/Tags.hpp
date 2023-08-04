@@ -159,6 +159,28 @@ struct MagneticDominanceViolation : db::SimpleTag {
 };
 
 /*!
+ * \brief The electromagnetic energy density $\rho = (E^2+B^2)/2$.
+ *
+ */
+struct ElectromagneticEnergyDensity : db::SimpleTag {
+  using type = Scalar<DataVector>;
+};
+
+/*!
+ * \brief The Poynting covector $S_i = $.
+ */
+struct PoyntingCovector : db::SimpleTag {
+  using type = tnsr::i<DataVector, 3>;
+};
+
+/*!
+ * \brief The Poynting flux $S_i n^i$.
+ */
+struct PoyntingFlux : db::SimpleTag {
+  using type = Scalar<DataVector>;
+};
+
+/*!
  * \brief The spatial velocity field of interior of the neutron star.
  */
 struct NsInteriorSpatialVelocity : db::SimpleTag {
