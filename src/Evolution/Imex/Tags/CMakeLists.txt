@@ -8,4 +8,5 @@ spectre_target_headers(
   ImplicitHistory.hpp
   Jacobian.hpp
   Mode.hpp
+  SolveFailures.hpp
   )

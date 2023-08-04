@@ -22,6 +22,7 @@
 #include "Evolution/Imex/Protocols/ImplicitSector.hpp"
 #include "Evolution/Imex/Tags/ImplicitHistory.hpp"
 #include "Evolution/Imex/Tags/Mode.hpp"
+#include "Evolution/Imex/Tags/SolveFailures.hpp"
 #include "Framework/ActionTesting.hpp"
 #include "Parallel/Phase.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"
@@ -96,7 +97,9 @@ struct Component {
                         imex::Tags::Mode,
                         Tags::TimeStepper<TimeSteppers::Heun2>,
                         imex::Tags::ImplicitHistory<Sector<Var1>>,
-                        imex::Tags::ImplicitHistory<Sector<Var2>>>;
+                        imex::Tags::ImplicitHistory<Sector<Var2>>,
+                        imex::Tags::SolveFailures<Sector<Var1>>,
+                        imex::Tags::SolveFailures<Sector<Var2>>>;
 
   using compute_tags = db::AddComputeTags<>;
   using phase_dependent_action_list = tmpl::list<
@@ -136,6 +139,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.Imex.Actions.DoImplicitStep",
   imex::Tags::ImplicitHistory<Sector<Var2>>::type history2(2);
   history2.insert(initialize_time_step_id, decltype(history2)::no_value,
                   -get(get<Var2>(initial_vars)));
+  Scalar<DataVector> solve_failures1(DataVector(number_of_grid_points, 0.0));
+  Scalar<DataVector> solve_failures2(DataVector(number_of_grid_points, 0.0));
 
   ActionTesting::MockRuntimeSystem<Metavariables> runner{{}};
 
@@ -143,7 +148,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.Imex.Actions.DoImplicitStep",
       &runner, 0,
       {time_step_id, time_step, initial_vars, imex::Mode::Implicit,
        std::make_unique<TimeSteppers::Heun2>(), std::move(history1),
-       std::move(history2)});
+       std::move(history2), std::move(solve_failures1),
+       std::move(solve_failures2)});
   ActionTesting::set_phase(make_not_null(&runner), Parallel::Phase::Testing);
   runner.next_action<component>(0);
 

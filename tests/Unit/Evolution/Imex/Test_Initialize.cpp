@@ -70,10 +70,13 @@ SPECTRE_TEST_CASE("Unit.Evolution.Imex.Initialize", "[Unit][Evolution]") {
   using initialize_imex = imex::Initialize<System>;
   using explicit_history_tag =
       Tags::HistoryEvolvedVariables<System::variables_tag>;
-  auto box = db::create<
-      db::AddSimpleTags<explicit_history_tag, initialize_imex::simple_tags>>();
-  db::mutate<explicit_history_tag>(
-      [](const gsl::not_null<explicit_history_tag::type*> explicit_history) {
+  auto box =
+      db::create<db::AddSimpleTags<System::variables_tag, explicit_history_tag,
+                                   initialize_imex::simple_tags>>();
+  db::mutate<System::variables_tag, explicit_history_tag>(
+      [](const gsl::not_null<System::variables_tag::type*> variables,
+         const gsl::not_null<explicit_history_tag::type*> explicit_history) {
+        variables->initialize(5);
         explicit_history->integration_order(3);
       },
       make_not_null(&box));
@@ -84,4 +87,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.Imex.Initialize", "[Unit][Evolution]") {
             .integration_order() == 3);
   CHECK(db::get<imex::Tags::ImplicitHistory<Sector<Var2>>>(box)
             .integration_order() == 3);
+  CHECK(db::get<imex::Tags::SolveFailures<Sector<Var1>>>(box) ==
+        Scalar<DataVector>(DataVector(5, 0.0)));
+  CHECK(db::get<imex::Tags::SolveFailures<Sector<Var2>>>(box) ==
+        Scalar<DataVector>(DataVector(5, 0.0)));
 }

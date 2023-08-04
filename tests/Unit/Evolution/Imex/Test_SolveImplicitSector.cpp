@@ -26,6 +26,7 @@
 #include "Evolution/Imex/Tags/ImplicitHistory.hpp"
 #include "Evolution/Imex/Tags/Jacobian.hpp"
 #include "Evolution/Imex/Tags/Mode.hpp"
+#include "Evolution/Imex/Tags/SolveFailures.hpp"
 #include "Framework/TestHelpers.hpp"
 #include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "Helpers/Evolution/Imex/TestSector.hpp"
@@ -327,11 +328,13 @@ void test_internal_jacobian_ordering() {
   auto evolution_box =
       db::create<db::AddSimpleTags<Tags::TimeStepper<TimeSteppers::Heun2>,
                                    Tags::TimeStep, sector_variables_tag, Var1,
-                                   NonTensor, VariablesFromEvolution>>(
+                                   NonTensor, VariablesFromEvolution,
+                                   imex::Tags::SolveFailures<sector>>>(
           std::make_unique<TimeSteppers::Heun2>(), slab.duration(),
           std::move(get<sector_variables_tag>(values)),
           std::move(get<Var1>(values)), get<NonTensor>(values),
-          std::move(get<VariablesFromEvolution>(values)));
+          std::move(get<VariablesFromEvolution>(values)),
+          Scalar<DataVector>(DataVector{0.0}));
 
   imex::solve_implicit_sector_detail::ImplicitSolver<
       sector, std::decay_t<decltype(evolution_box)>>
@@ -384,13 +387,14 @@ void test_solve_implicit_sector(const imex::Mode solve_mode) {
                                                           make_not_null(&dist));
   const auto initial_vars = make_with_random_values<variables_tag::type>(
       make_not_null(&gen), make_not_null(&dist), number_of_grid_points);
-  auto box = db::create<
-      db::AddSimpleTags<variables_tag, NonTensor, VariablesFromEvolution,
-                        Tags::TimeStepper<TimeSteppers::Heun2>, Tags::TimeStep,
-                        history_tag, imex::Tags::Mode>>(
+  auto box = db::create<db::AddSimpleTags<
+      variables_tag, NonTensor, VariablesFromEvolution,
+      Tags::TimeStepper<TimeSteppers::Heun2>, Tags::TimeStep, history_tag,
+      imex::Tags::Mode, imex::Tags::SolveFailures<sector>>>(
       initial_vars, non_tensor, VariablesFromEvolution::type{},
       std::make_unique<TimeSteppers::Heun2>(), time_step,
-      typename history_tag::type{2}, solve_mode);
+      typename history_tag::type{2}, solve_mode,
+      Scalar<DataVector>(DataVector(number_of_grid_points, 0.0)));
 
   // Perform updates as if taking an explicit step.
   const auto simulate_explicit_step = [&dist, &gen, &initial_vars](
@@ -608,10 +612,11 @@ void test_point_reseting() {
 
   auto box = db::create<db::AddSimpleTags<
       Var2, variables_tag, imex::Tags::ImplicitHistory<ResettingTestSector>,
-      imex::Tags::Mode, Tags::TimeStepper<TimeSteppers::Heun2>,
-      Tags::TimeStep>>(var2, std::move(initial_value), std::move(history),
-                       imex::Mode::SemiImplicit,
-                       std::make_unique<TimeSteppers::Heun2>(), time_step);
+      imex::Tags::Mode, Tags::TimeStepper<TimeSteppers::Heun2>, Tags::TimeStep,
+      imex::Tags::SolveFailures<ResettingTestSector>>>(
+      var2, std::move(initial_value), std::move(history),
+      imex::Mode::SemiImplicit, std::make_unique<TimeSteppers::Heun2>(),
+      time_step, Scalar<DataVector>(DataVector(2, 0.0)));
   imex::solve_implicit_sector<ResettingTestSector>(make_not_null(&box));
 
   // The equation being solved is: y(dt) = dt/2 source(y(dt))
@@ -689,15 +694,18 @@ void test_fallback() {
 
   auto box = db::create<db::AddSimpleTags<
       DesiredLevel, variables_tag, history_tag, imex::Tags::Mode,
-      Tags::TimeStepper<TimeSteppers::Heun2>, Tags::TimeStep>>(
+      Tags::TimeStepper<TimeSteppers::Heun2>, Tags::TimeStep,
+      imex::Tags::SolveFailures<sector>>>(
       desired_level, std::move(initial_value), std::move(history),
       imex::Mode::SemiImplicit, std::make_unique<TimeSteppers::Heun2>(),
-      time_step);
+      time_step, Scalar<DataVector>(DataVector(number_of_grid_points, 0.0)));
   imex::solve_implicit_sector<sector>(make_not_null(&box));
 
   // The equation being solved is: y(dt) = dt/2 source(y(dt))
   // where: dt = 2, source(y) = desired_level
   CHECK_ITERABLE_APPROX(get(get<Var1>(box)), get(desired_level));
+  CHECK(get(get<imex::Tags::SolveFailures<sector>>(box)) ==
+        4.0 - get(desired_level));
 }
 }  // namespace
 

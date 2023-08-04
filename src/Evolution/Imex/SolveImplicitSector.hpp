@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/PrefixHelpers.hpp"
@@ -41,6 +40,10 @@
 #include "Utilities/TypeTraits/IsA.hpp"
 
 /// \cond
+namespace imex::Tags {
+template <typename Sector>
+struct SolveFailures;
+}  // namespace imex::Tags
 namespace Tags {
 struct TimeStep;
 }  // namespace Tags
@@ -387,13 +390,13 @@ class ImplicitSolver {
       completed_mutators_{};
 };
 
-template <typename ImplicitSector, typename DbTags>
+template <typename ImplicitSector, size_t FallbackDepth, typename DbTags>
 void solve_implicit_sector_impl(
     const gsl::not_null<db::DataBox<DbTags>*> box,
     const gsl::not_null<
         TimeSteppers::History<Variables<typename ImplicitSector::tensors>>*>
         implicit_history,
-    const gsl::not_null<std::vector<bool>*> solved_points,
+    const gsl::not_null<Scalar<DataVector>*> solve_failures,
     const gsl::not_null<Matrix*> scratch_matrix) {
   using fallback_sector = typename ImplicitSector::fallback;
   constexpr bool have_fallback =
@@ -406,14 +409,14 @@ void solve_implicit_sector_impl(
                                                db::DataBox<DbTags>>
       solver(implicit_history, *box);
 
-  const size_t number_of_grid_points = solved_points->size();
+  const size_t number_of_grid_points = get(*solve_failures).size();
 
   bool had_failure = false;
   for (size_t point = 0; point < number_of_grid_points; ++point) {
-    // This is always false unless there has been a failure.  After
-    // that it's probably true, but that should be a rare situation so
-    // we don't optimize for it.
-    if (UNLIKELY((*solved_points)[point])) {
+    // On the primary solve this is always false, but the compiler can
+    // easily prove that from type ranges so the LIKELY doesn't
+    // matter.  After that it's probably true.
+    if (LIKELY(get(*solve_failures)[point] < FallbackDepth)) {
       continue;
     }
     TimeSteppers::History<ImplicitVars> pointwise_history{};
@@ -440,6 +443,7 @@ void solve_implicit_sector_impl(
                 max_iterations);
           } catch (const convergence_error&) {
             if constexpr (have_fallback) {
+              ++get(*solve_failures)[point];
               had_failure = true;
               continue;
             } else {
@@ -463,6 +467,7 @@ void solve_implicit_sector_impl(
               ERROR("LAPACK invalid argument: " << -lapack_info);
             } else {
               if constexpr (have_fallback) {
+                ++get(*solve_failures)[point];
                 had_failure = true;
                 continue;
               } else {
@@ -493,13 +498,12 @@ void solve_implicit_sector_impl(
               });
         },
         box);
-    (*solved_points)[point] = true;
   }
 
   if constexpr (have_fallback) {
     if (had_failure) {
-      solve_implicit_sector_impl<fallback_sector>(
-          box, implicit_history, solved_points, scratch_matrix);
+      solve_implicit_sector_impl<fallback_sector, FallbackDepth + 1>(
+          box, implicit_history, solve_failures, scratch_matrix);
     }
   }
 }
@@ -517,13 +521,11 @@ void solve_implicit_sector(const gsl::not_null<db::DataBox<DbTags>*> box) {
   auto& implicit_history =
       db::get_mutable_reference<imex::Tags::ImplicitHistory<ImplicitSector>>(
           box);
-  const size_t number_of_grid_points =
-      db::get<tmpl::front<typename ImplicitSector::tensors>>(*box)
-          .begin()
-          ->size();
-  std::vector<bool> solved_points(number_of_grid_points, false);
+  Scalar<DataVector>& solve_failures =
+      db::get_mutable_reference<Tags::SolveFailures<ImplicitSector>>(box);
+  get(solve_failures) = 0.0;
   Matrix scratch_matrix{};
-  solve_implicit_sector_detail::solve_implicit_sector_impl<ImplicitSector>(
-      box, &implicit_history, &solved_points, &scratch_matrix);
+  solve_implicit_sector_detail::solve_implicit_sector_impl<ImplicitSector, 0>(
+      box, &implicit_history, &solve_failures, &scratch_matrix);
 }
 }  // namespace imex
