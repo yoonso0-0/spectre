@@ -25,7 +25,7 @@ struct Initialize<System, tmpl::list<Sectors...>> {
   using example_tensor_tag =
       tmpl::front<typename tmpl::front<tmpl::list<Sectors...>>::tensors>;
 
-  using const_global_cache_tags = tmpl::list<imex::Tags::Mode>;
+  using const_global_cache_tags = tmpl::list<Tags::Mode>;
   using mutable_global_cache_tags = tmpl::list<>;
   using simple_tags_from_options = tmpl::list<>;
   using simple_tags = tmpl::list<Tags::ImplicitHistory<Sectors>...,

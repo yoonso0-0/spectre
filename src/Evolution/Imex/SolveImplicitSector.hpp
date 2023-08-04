@@ -23,7 +23,6 @@
 #include "Evolution/Imex/Protocols/ImplicitSector.hpp"
 #include "Evolution/Imex/Tags/ImplicitHistory.hpp"
 #include "Evolution/Imex/Tags/Jacobian.hpp"
-#include "Evolution/Imex/Tags/Mode.hpp"
 #include "NumericalAlgorithms/LinearSolver/Lapack.hpp"
 #include "NumericalAlgorithms/RootFinding/GslMultiRoot.hpp"
 #include "Time/History.hpp"
@@ -41,6 +40,7 @@
 
 /// \cond
 namespace imex::Tags {
+struct Mode;
 template <typename Sector>
 struct SolveFailures;
 }  // namespace imex::Tags
