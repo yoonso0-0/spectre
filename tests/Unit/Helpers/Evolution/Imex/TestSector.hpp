@@ -32,12 +32,12 @@
 namespace TestHelpers::imex {
 namespace test_sector_detail {
 template <typename Tag>
-struct ReadOnlySource : db::SimpleTag {
+struct ReadOnlySource : ::db::SimpleTag {
   using type = typename Tag::type;
 };
 
 template <typename Tag>
-struct ReadOnly : Tag, db::ComputeTag {
+struct ReadOnly : Tag, ::db::ComputeTag {
   using base = Tag;
   using argument_tags = tmpl::list<ReadOnlySource<Tag>>;
   static void function(gsl::not_null<typename ReadOnly::type*> dest,
@@ -62,7 +62,7 @@ void test_sector(
   using sector_variables_tag = ::Tags::Variables<typename Sector::tensors>;
   using SectorVariables = typename sector_variables_tag::type;
   using sector_source_tag =
-      db::add_tag_prefix<::Tags::Source, sector_variables_tag>;
+      ::db::add_tag_prefix<::Tags::Source, sector_variables_tag>;
 
   using sector_jacobian_tag = ::Tags::Variables<::imex::jacobian_tags<
       typename Sector::tensors, typename sector_source_tag::type::tags_list>>;
@@ -80,10 +80,10 @@ void test_sector(
       tmpl::list<sector_variables_tag, sector_source_tag, sector_jacobian_tag>>;
   using compute_tags = tmpl::append<read_only_tags_from_evolution,
                                     typename Sector::compute_tags>;
-  auto box = db::create<simple_tags, compute_tags>();
+  auto box = ::db::create<simple_tags, compute_tags>();
   tmpl::for_each<typename Sector::tags_from_evolution>([&](auto tag) {
     using Tag = tmpl::type_from<decltype(tag)>;
-    db::mutate<test_sector_detail::ReadOnlySource<Tag>>(
+    ::db::mutate<test_sector_detail::ReadOnlySource<Tag>>(
         [&](const gsl::not_null<typename Tag::type*> box_value) {
           *box_value = std::move(get<Tag>(evolution_data));
         },
@@ -93,10 +93,10 @@ void test_sector(
       tmpl::filter<typename Sector::simple_tags,
                    tt::is_a<Variables, tmpl::bind<tmpl::type_from, tmpl::_1>>>,
       sector_source_tag, sector_jacobian_tag>;
-  db::mutate_apply<variables_tags, tmpl::list<>>(
+  ::db::mutate_apply<variables_tags, tmpl::list<>>(
       [](const auto... vars) { expand_pack((vars->initialize(1, 0.0), 0)...); },
       make_not_null(&box));
-  db::mutate<sector_variables_tag>(
+  ::db::mutate<sector_variables_tag>(
       [&](const gsl::not_null<SectorVariables*> vars) {
         *vars = explicit_values;
       },
@@ -104,7 +104,7 @@ void test_sector(
 
   tmpl::for_each<typename Sector::initial_guess_prep>([&](auto mutator) {
     using Mutator = tmpl::type_from<decltype(mutator)>;
-    db::mutate_apply<Mutator>(make_not_null(&box));
+    ::db::mutate_apply<Mutator>(make_not_null(&box));
   });
 
   // Arbitrary values.  These would depend on the choice of time
@@ -113,40 +113,40 @@ void test_sector(
   const double implicit_weight = 0.4;
 
   const ::imex::GuessResult guess_type =
-      db::mutate_apply<typename Sector::initial_guess>(
+      ::db::mutate_apply<typename Sector::initial_guess>(
           make_not_null(&box), inhomogeneous_terms, implicit_weight);
-  const SectorVariables initial_guess = db::get<sector_variables_tag>(box);
+  const SectorVariables initial_guess = ::db::get<sector_variables_tag>(box);
   if (guess_type == ::imex::GuessResult::InitialGuess) {
     tmpl::for_each<typename Sector::jacobian_prep>([&](auto mutator) {
       using Mutator = tmpl::type_from<decltype(mutator)>;
-      db::mutate_apply<Mutator>(make_not_null(&box));
+      ::db::mutate_apply<Mutator>(make_not_null(&box));
     });
-    db::mutate_apply<typename Sector::jacobian>(make_not_null(&box));
-    const auto jacobian = db::get<sector_jacobian_tag>(box);
+    ::db::mutate_apply<typename Sector::jacobian>(make_not_null(&box));
+    const auto jacobian = ::db::get<sector_jacobian_tag>(box);
     tmpl::for_each<typename Sector::tensors>([&](auto varying_tensor_v) {
       using varying_tensor = tmpl::type_from<decltype(varying_tensor_v)>;
       CAPTURE(pretty_type::get_name<varying_tensor>());
       for (size_t varying_component = 0;
            varying_component < varying_tensor::type::size();
            ++varying_component) {
-        db::mutate<sector_variables_tag>(
+        ::db::mutate<sector_variables_tag>(
             [&](const gsl::not_null<SectorVariables*> vars) {
               *vars = initial_guess;
             },
             make_not_null(&box));
         const auto finite_difference_derivative = numerical_derivative(
             [&](const std::array<double, 1>& component_value) {
-              db::mutate<varying_tensor>(
+              ::db::mutate<varying_tensor>(
                   [&](const gsl::not_null<typename varying_tensor::type*> var) {
                     (*var)[varying_component] = component_value[0];
                   },
                   make_not_null(&box));
               tmpl::for_each<typename Sector::source_prep>([&](auto mutator) {
                 using Mutator = tmpl::type_from<decltype(mutator)>;
-                db::mutate_apply<Mutator>(make_not_null(&box));
+                ::db::mutate_apply<Mutator>(make_not_null(&box));
               });
-              db::mutate_apply<typename Sector::source>(make_not_null(&box));
-              return db::get<sector_source_tag>(box);
+              ::db::mutate_apply<typename Sector::source>(make_not_null(&box));
+              return ::db::get<sector_source_tag>(box);
             },
             std::array{
                 get<varying_tensor>(initial_guess)[varying_component][0]},
@@ -186,10 +186,10 @@ void test_sector(
     // solution is correct.
     tmpl::for_each<typename Sector::source_prep>([&](auto mutator) {
       using Mutator = tmpl::type_from<decltype(mutator)>;
-      db::mutate_apply<Mutator>(make_not_null(&box));
+      ::db::mutate_apply<Mutator>(make_not_null(&box));
     });
-    db::mutate_apply<typename Sector::source>(make_not_null(&box));
-    const auto& source = db::get<sector_source_tag>(box);
+    ::db::mutate_apply<typename Sector::source>(make_not_null(&box));
+    const auto& source = ::db::get<sector_source_tag>(box);
     const SectorVariables step_result =
         inhomogeneous_terms + implicit_weight * source;
     CHECK_VARIABLES_CUSTOM_APPROX(initial_guess, step_result,
