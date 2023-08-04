@@ -7,4 +7,5 @@ set(LIBRARY_SOURCES
   Tags/Test_Jacobian.cpp
   Tags/Test_Mode.cpp
   Tags/Test_SolveFailures.cpp
+  Tags/Test_SolveTolerance.cpp
   PARENT_SCOPE)

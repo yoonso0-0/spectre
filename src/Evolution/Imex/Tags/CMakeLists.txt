@@ -9,4 +9,5 @@ spectre_target_headers(
   Jacobian.hpp
   Mode.hpp
   SolveFailures.hpp
+  SolveTolerance.hpp
   )
