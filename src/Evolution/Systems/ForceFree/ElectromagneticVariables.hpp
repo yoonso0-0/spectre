@@ -6,7 +6,7 @@
 #include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
-#include "PointwiseFunctions/GeneralRelativity/TagsDeclarations.hpp"
+#include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Utilities/TMPL.hpp"
 
 /// \cond
@@ -105,6 +105,73 @@ struct ElectricCurrentDensityCompute : ElectricCurrentDensity, db::ComputeTag {
 
   static constexpr auto function = &electric_current_density_from_tilde_j;
 };
+}  // namespace Tags
+
+///
+
+/*!
+ * \brief Computes the electromagnetic energy density.
+ */
+void electromagnetic_energy_density(
+    const gsl::not_null<Scalar<DataVector>*> electromagnetic_energy_density,
+    const tnsr::I<DataVector, 3>& tilde_e,
+    const tnsr::I<DataVector, 3>& tilde_b,
+    const Scalar<DataVector>& sqrt_det_spatial_metric,
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric);
+
+/*!
+ * \brief Computes the Poynting vector
+ */
+void electromagnetic_spatial_poynting_vector(
+    const gsl::not_null<tnsr::I<DataVector, 3>*>
+        electromagnetic_spatial_poynting_vector,
+    const tnsr::I<DataVector, 3>& tilde_e,
+    const tnsr::I<DataVector, 3>& tilde_b, const Scalar<DataVector>& lapse,
+    const tnsr::I<DataVector, 3, Frame::Inertial>& shift,
+    const Scalar<DataVector>& sqrt_det_spatial_metric,
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric);
+
+/*!
+ * \brief Computes the Poynting flux
+ */
+void poynting_flux(
+    const gsl::not_null<Scalar<DataVector>*> poynting_flux,
+    const tnsr::I<DataVector, 3>& electromagnetic_spatial_poynting_vector,
+    const tnsr::i<DataVector, 3>& normal_covector);
+
+namespace Tags {
+/*!
+ * \brief Computes the electromagnetic energy denisty.
+ *
+ */
+struct ElectromagneticEnergyDensityCompute : ElectromagneticEnergyDensity,
+                                             db::ComputeTag {
+  using argument_tags =
+      tmpl::list<TildeE, TildeB, gr::Tags::SqrtDetSpatialMetric<DataVector>,
+                 gr::Tags::SpatialMetric<DataVector, 3>>;
+  using return_type = Scalar<DataVector>;
+  using base = ElectromagneticEnergyDensity;
+
+  static constexpr auto function = &electromagnetic_energy_density;
+};
+
+/*!
+ * \brief Computes the electromagnetic Poynting vector $S^i$.
+ *
+ */
+struct ElectromagneticSpatialPoyntingVectorCompute
+    : ElectromagneticSpatialPoyntingVector,
+      db::ComputeTag {
+  using argument_tags = tmpl::list<TildeE, TildeB, gr::Tags::Lapse<DataVector>,
+                                   gr::Tags::Shift<DataVector, 3>,
+                                   gr::Tags::SqrtDetSpatialMetric<DataVector>,
+                                   gr::Tags::SpatialMetric<DataVector, 3>>;
+  using return_type = tnsr::I<DataVector, 3>;
+  using base = ElectromagneticSpatialPoyntingVector;
+
+  static constexpr auto function = &electromagnetic_spatial_poynting_vector;
+};
 
 }  // namespace Tags
+
 }  // namespace ForceFree

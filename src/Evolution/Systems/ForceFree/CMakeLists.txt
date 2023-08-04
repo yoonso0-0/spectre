@@ -30,6 +30,7 @@ spectre_target_headers(
   Fluxes.hpp
   InitialGuess.hpp
   MaskNeutronStarInterior.hpp
+  PoyntingVector.hpp
   Sources.hpp
   System.hpp
   Tags.hpp
