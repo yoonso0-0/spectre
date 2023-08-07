@@ -36,6 +36,7 @@ void sources_impl(
     const Scalar<DataVector>& tilde_q,
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_j_drift,
     const double kappa_psi, const double kappa_phi,
+
     // GR args
     const Scalar<DataVector>& lapse,
     const tnsr::i<DataVector, 3, Frame::Inertial>& d_lapse,
@@ -98,6 +99,9 @@ void Sources::apply(
     const Scalar<DataVector>& tilde_psi, const Scalar<DataVector>& tilde_phi,
     const Scalar<DataVector>& tilde_q, const double kappa_psi,
     const double kappa_phi, const double parallel_conductivity,
+
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask,
+
     // GR variables
     const Scalar<DataVector>& lapse,
     const tnsr::i<DataVector, 3, Frame::Inertial>& d_lapse,
@@ -118,7 +122,8 @@ void Sources::apply(
   auto& tilde_j_drift = get<::Tags::TempI<0, 3>>(temp_tensors);
   ComputeDriftTildeJ::apply(make_not_null(&tilde_j_drift), tilde_q, tilde_e,
                             tilde_b, parallel_conductivity, lapse,
-                            sqrt_det_spatial_metric, spatial_metric);
+                            sqrt_det_spatial_metric, spatial_metric,
+                            neutron_star_interior_mask);
 
   // compute the product \gamma^jk \Gamma^i_{jk}
   auto& spatial_christoffel_first_kind =

@@ -57,6 +57,8 @@ void TimeDerivativeTerms::apply(
     const double kappa_psi, const double kappa_phi,
     const double parallel_conductivity,
 
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask,
+
     const Scalar<DataVector>& lapse,
     const tnsr::I<DataVector, 3, Frame::Inertial>& shift,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
@@ -90,9 +92,9 @@ void TimeDerivativeTerms::apply(
       tilde_phi, tilde_q, tilde_j, lapse, shift, inv_spatial_metric);
 
   // Compute source terms
-  ComputeDriftTildeJ::apply(tilde_j_drift, tilde_q, tilde_e, tilde_b,
-                            parallel_conductivity, lapse,
-                            sqrt_det_spatial_metric, spatial_metric);
+  ComputeDriftTildeJ::apply(
+      tilde_j_drift, tilde_q, tilde_e, tilde_b, parallel_conductivity, lapse,
+      sqrt_det_spatial_metric, spatial_metric, neutron_star_interior_mask);
   gr::christoffel_first_kind(spatial_christoffel_first_kind, d_spatial_metric);
   raise_or_lower_first_index(spatial_christoffel_second_kind,
                              *spatial_christoffel_first_kind,

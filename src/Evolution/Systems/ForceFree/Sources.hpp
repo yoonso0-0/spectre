@@ -34,6 +34,7 @@ void sources_impl(
     const Scalar<DataVector>& tilde_q,
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_j_drift,
     double kappa_psi, double kappa_phi,
+
     // GR args
     const Scalar<DataVector>& lapse,
     const tnsr::i<DataVector, 3, Frame::Inertial>& d_lapse,
@@ -82,6 +83,9 @@ struct Sources {
       // EM variables
       Tags::TildeE, Tags::TildeB, Tags::TildePsi, Tags::TildePhi, Tags::TildeQ,
       Tags::KappaPsi, Tags::KappaPhi, Tags::ParallelConductivity,
+
+      Tags::NsInteriorMask,
+
       // GR variables
       gr::Tags::Lapse<DataVector>,
       ::Tags::deriv<gr::Tags::Lapse<DataVector>, tmpl::size_t<3>,
@@ -106,6 +110,9 @@ struct Sources {
       const Scalar<DataVector>& tilde_psi, const Scalar<DataVector>& tilde_phi,
       const Scalar<DataVector>& tilde_q, double kappa_psi, double kappa_phi,
       double parallel_conductivity,
+
+      const std::optional<Scalar<DataVector>>& neutron_star_interior_mask,
+
       // GR variables
       const Scalar<DataVector>& lapse,
       const tnsr::i<DataVector, 3, Frame::Inertial>& d_lapse,
