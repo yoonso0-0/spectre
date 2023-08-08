@@ -47,6 +47,15 @@ void electric_current_density_from_tilde_j(
       get<2>(*electric_current_density) / get(lapse);
 }
 
+void joule_heating(const gsl::not_null<Scalar<DataVector>*> joule_heating,
+                   const tnsr::I<DataVector, 3>& tilde_e,
+                   const tnsr::I<DataVector, 3>& tilde_j,
+                   const Scalar<DataVector>& lapse,
+                   const Scalar<DataVector>& sqrt_det_spatial_metric) {
+  dot_product(joule_heating, tilde_e, tilde_j);
+  get(*joule_heating) /= get(lapse) * square(get(sqrt_det_spatial_metric));
+}
+
 void electromagnetic_energy_density(
     const gsl::not_null<Scalar<DataVector>*> electromagnetic_energy_density,
     const tnsr::I<DataVector, 3>& tilde_e,
