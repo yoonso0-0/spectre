@@ -159,6 +159,13 @@ struct MagneticDominanceViolation : db::SimpleTag {
 };
 
 /*!
+ * \brief The dissipation $J^i E_i$.
+ */
+struct JouleHeating : db::SimpleTag {
+  using type = Scalar<DataVector>;
+};
+
+/*!
  * \brief The electromagnetic energy density $\rho = (E^2+B^2)/2$.
  *
  */

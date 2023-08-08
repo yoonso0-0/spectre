@@ -45,6 +45,15 @@ void electric_current_density_from_tilde_j(
     const Scalar<DataVector>& sqrt_det_spatial_metric,
     const Scalar<DataVector>& lapse);
 
+/*!
+ * \brief Computes energy dissipation rate $J_i E^i$.
+ */
+void joule_heating(const gsl::not_null<Scalar<DataVector>*> joule_heating,
+                   const tnsr::I<DataVector, 3>& tilde_e,
+                   const tnsr::I<DataVector, 3>& tilde_j,
+                   const Scalar<DataVector>& lapse,
+                   const Scalar<DataVector>& sqrt_det_spatial_metric);
+
 namespace Tags {
 /*!
  * \brief Compute item for electric field $E^i$ from TildeE.
@@ -104,6 +113,19 @@ struct ElectricCurrentDensityCompute : ElectricCurrentDensity, db::ComputeTag {
   using base = ElectricCurrentDensity;
 
   static constexpr auto function = &electric_current_density_from_tilde_j;
+};
+
+/*!
+ * \brief Compute item for energy dissipation $J^i E_i$.
+ *
+ */
+struct JouleHeatingCompute : JouleHeating, db::ComputeTag {
+  using argument_tags = tmpl::list<TildeE, TildeJ, gr::Tags::Lapse<DataVector>,
+                                   gr::Tags::SqrtDetSpatialMetric<DataVector>>;
+  using return_type = Scalar<DataVector>;
+  using base = JouleHeating;
+
+  static constexpr auto function = &joule_heating;
 };
 }  // namespace Tags
 
