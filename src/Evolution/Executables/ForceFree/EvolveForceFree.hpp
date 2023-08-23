@@ -37,6 +37,7 @@
 #include "Evolution/Systems/ForceFree/BoundaryCorrections/Factory.hpp"
 #include "Evolution/Systems/ForceFree/ElectricCurrentDensity.hpp"
 #include "Evolution/Systems/ForceFree/ElectromagneticVariables.hpp"
+#include "Evolution/Systems/ForceFree/ForceFreeConstraints.hpp"
 #include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
 #include "Evolution/Systems/ForceFree/System.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
@@ -131,7 +132,9 @@ struct EvolutionMetavars {
       ForceFree::Tags::ElectricFieldCompute,
       ForceFree::Tags::MagneticFieldCompute,
       ForceFree::Tags::ChargeDensityCompute,
-      ForceFree::Tags::ElectricCurrentDensityCompute>;
+      ForceFree::Tags::ElectricCurrentDensityCompute,
+      ForceFree::Tags::ElectricFieldDotMagneticFieldCompute,
+      ForceFree::Tags::MagneticDominanceViolationCompute>;
 
   using non_tensor_compute_tags =
       tmpl::list<::Events::Tags::ObserverMeshCompute<volume_dim>,
@@ -232,7 +235,10 @@ struct EvolutionMetavars {
           ForceFree::MaskNeutronStarInterior<EvolutionMetavars, false>>,
 
       Initialization::Actions::AddComputeTags<
-          tmpl::list<ForceFree::Tags::ComputeTildeJ>>,
+          tmpl::list<ForceFree::Tags::TildeESquaredCompute,
+                     ForceFree::Tags::TildeBSquaredCompute,
+                     ForceFree::Tags::TildeEDotTildeBCompute,
+                     ForceFree::Tags::ComputeTildeJ>>,
 
       Initialization::Actions::AddComputeTags<
           StepChoosers::step_chooser_compute_tags<EvolutionMetavars>>,
