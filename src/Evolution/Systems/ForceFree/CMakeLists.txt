@@ -9,6 +9,7 @@ spectre_target_sources(
   ${LIBRARY}
   PRIVATE
   Characteristics.cpp
+  Constraints.cpp
   ElectricCurrentDensity.cpp
   ElectromagneticVariables.cpp
   Fluxes.cpp
@@ -22,9 +23,11 @@ spectre_target_headers(
   INCLUDE_DIRECTORY ${CMAKE_SOURCE_DIR}/src
   HEADERS
   Characteristics.hpp
+  Constraints.hpp
   ElectricCurrentDensity.hpp
   ElectromagneticVariables.hpp
   Fluxes.hpp
+  ForceFreeConstraints.hpp
   MaskNeutronStarInterior.hpp
   Sources.hpp
   System.hpp
