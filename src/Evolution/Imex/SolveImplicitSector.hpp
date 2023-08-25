@@ -138,6 +138,24 @@ class ImplicitSolver {
     }
   };
 
+  template <typename Tag, typename Symm, typename IndexList>
+  struct FromEvolution<Tag, std::optional<Tensor<DataVector, Symm, IndexList>>>
+      : Tag, db::ComputeTag {
+    using base = Tag;
+    using argument_tags = tmpl::list<EvolutionBoxTag, SolverPointIndex>;
+    static constexpr auto function(
+        const gsl::not_null<typename base::type*> result,
+        const EvolutionBox* const evolution_box, const size_t index) {
+      if (db::get<Tag>(*evolution_box).has_value()) {
+        *result = Tensor<DataVector, Symm, IndexList>{1_st, 0.0};
+        extract_point(make_not_null(&result->value()),
+                      db::get<Tag>(*evolution_box).value(), index);
+      } else {
+        *result = std::nullopt;
+      }
+    }
+  };
+
   struct ExplicitValue : db::SimpleTag {
     using type = SectorVariables;
   };
