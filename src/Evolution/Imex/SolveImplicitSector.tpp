@@ -181,6 +181,29 @@ class ImplicitSolver {
     }
   };
 
+  template <typename Tag, typename Symm, typename IndexList>
+  struct FromEvolution<Tag, std::optional<Tensor<DataVector, Symm, IndexList>>>
+      : Tag, db::ComputeTag {
+    using base = Tag;
+    using argument_tags = tmpl::list<EvolutionDataTag, SolverPointIndex>;
+    static constexpr auto function(
+        const gsl::not_null<typename base::type*> result,
+        const EvolutionData* const evolution_data, const size_t index) {
+      if (std::get<tmpl::index_of<tags_from_evolution, Tag>::value>(
+              *evolution_data)
+              .has_value()) {
+        *result = Tensor<DataVector, Symm, IndexList>{1_st, 0.0};
+        extract_point(make_not_null(&result->value()),
+                      get<tmpl::index_of<tags_from_evolution, Tag>::value>(
+                          *evolution_data)
+                          .value(),
+                      index);
+      } else {
+        *result = std::nullopt;
+      }
+    }
+  };
+
   // Tensor<DataVector> always allocates, so instead of creating one
   // we create a one-tensor Variables, and the DataBox will allow
   // access to the tensor transparently.  We could instead manually
@@ -486,6 +509,38 @@ void SolveImplicitSector<SystemVariablesTag, ImplicitSector>::apply_impl(
                 RootFinder::StoppingConditions::Residual(
                     implicit_solve_tolerance),
                 max_iterations);
+            // FIXME : If solver fails frequently, try `Hybrid` or `Hybrids`
+            // method, or set max absolute tolerance to be positive finite value
+            // (1e-10)
+            //
+            // Aug 4 : try with different root finding method.
+            //
+            //  1. StoppingConditions::Residual(abs_tol)
+            //  2. StoppingConditions::Convergence(abs_tol, rel_tol)
+            //
+            //  a. Newton
+            //  b. Hybrids
+            //
+            //  i) zero max abs tolerance
+            //  ii) finite max abs tolerance
+            //
+            // For now set abs tolerance to zero..
+            // const double max_abs_tolerance = 0.0;
+            // const size_t max_iterations = 100;
+            // const double residual_tolerance = 1.0e-10;
+            // const double convergence_relative_tolerance = 1.0e-10;
+            // const double convergence_absolute_tolerance = 1.0e-10;
+            // Use relative convergence as stopping criteria
+            // pointwise_vars_array = RootFinder::gsl_multiroot(
+            //     solver, solver.initial_guess(),
+            //     //
+            //     RootFinder::StoppingConditions::Residual(residual_tolerance),
+            //     RootFinder::StoppingConditions::Convergence(
+            //         convergence_absolute_tolerance,
+            //         convergence_relative_tolerance),
+            //     max_iterations, Verbosity::Silent, max_abs_tolerance,
+            //     RootFinder::Method::Newton);
+
           } catch (const convergence_error&) {
             if constexpr (have_fallback) {
               ++get(*solve_failures)[point];
