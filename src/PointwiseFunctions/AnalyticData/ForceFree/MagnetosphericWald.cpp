@@ -14,6 +14,8 @@
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "Options/Options.hpp"
 #include "Options/ParseError.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/SphericalKerrSchild.hpp"
+#include "PointwiseFunctions/GeneralRelativity/KerrSchildCoords.hpp"
 #include "Utilities/TaggedTuple.hpp"
 
 #include <iostream>
@@ -25,9 +27,9 @@ MagnetosphericWald::MagnetosphericWald(const double spin,
     : spin_(spin),
       background_spacetime_{1.0, {{0.0, 0.0, spin_}}, {{0.0, 0.0, 0.0}}},
       kerr_schild_coords_{1.0, spin_} {
-  if (abs(spin_) >= 1.0) {
+  if (abs(spin_) > 1.0) {
     PARSE_ERROR(context, "The dimensionless spin ("
-                             << spin_ << ") must be smaller than 1.0");
+                             << spin_ << ") cannot be bigger than 1.0");
   }
 }
 
@@ -43,65 +45,67 @@ void MagnetosphericWald::pup(PUP::er& p) {
   InitialData::pup(p);
   p | spin_;
   p | background_spacetime_;
-  p | kerr_schild_coords_;
 }
 
 PUP::able::PUP_ID MagnetosphericWald::my_PUP_ID = 0;
 
-tnsr::I<DataVector, 3, Frame::Inertial> MagnetosphericWald::regularize_coords(
-    const tnsr::I<DataVector, 3>& inertial_coords) const {
-  auto regularized_coords =
-      make_with_value<tnsr::I<DataVector, 3, Frame::Inertial>>(inertial_coords,
-                                                               0.0);
-  for (size_t d = 0; d < 3; ++d) {
-    regularized_coords.get(d) = inertial_coords.get(d);
-  }
+// tnsr::I<DataVector, 3, Frame::Inertial>
+// MagnetosphericWald::regularize_coords(
+//     const tnsr::I<DataVector, 3>& inertial_coords) const {
+//   auto regularized_coords =
+//       make_with_value<tnsr::I<DataVector, 3,
+//       Frame::Inertial>>(inertial_coords,
+//                                                                0.0);
+//   for (size_t d = 0; d < 3; ++d) {
+//     regularized_coords.get(d) = inertial_coords.get(d);
+//   }
 
-  DataVector r_squared =
-      get(kerr_schild_coords_.r_coord_squared(inertial_coords));
-  DataVector spherical_radius_squared =
-      get(dot_product(inertial_coords, inertial_coords));
-  const bool element_is_outside_heck_region =
-      min(spherical_radius_squared) > 1.0;
+//   DataVector r_squared =
+//       get(kerr_schild_coords_.r_coord_squared(inertial_coords));
+//   DataVector spherical_radius_squared =
+//       get(dot_product(inertial_coords, inertial_coords));
+//   const bool element_is_outside_heck_region =
+//       min(spherical_radius_squared) > 1.0;
 
-  if (element_is_outside_heck_region) {
-    return inertial_coords;
-  } else {
-    const size_t num_grid_pts = get_size(get<0>(inertial_coords));
+//   if (element_is_outside_heck_region) {
+//     return inertial_coords;
+//   } else {
+//     const size_t num_grid_pts = get_size(get<0>(inertial_coords));
 
-    const double sign_x = std::copysign(
-        1.0, get_element(get<0>(inertial_coords), 0) +
-                 get_element(get<0>(inertial_coords), num_grid_pts - 1));
-    const double sign_y = std::copysign(
-        1.0, get_element(get<1>(inertial_coords), 0) +
-                 get_element(get<1>(inertial_coords), num_grid_pts - 1));
-    const double sign_z = std::copysign(
-        1.0, get_element(get<2>(inertial_coords), 0) +
-                 get_element(get<2>(inertial_coords), num_grid_pts - 1));
+//     const double sign_x = std::copysign(
+//         1.0, get_element(get<0>(inertial_coords), 0) +
+//                  get_element(get<0>(inertial_coords), num_grid_pts - 1));
+//     const double sign_y = std::copysign(
+//         1.0, get_element(get<1>(inertial_coords), 0) +
+//                  get_element(get<1>(inertial_coords), num_grid_pts - 1));
+//     const double sign_z = std::copysign(
+//         1.0, get_element(get<2>(inertial_coords), 0) +
+//                  get_element(get<2>(inertial_coords), num_grid_pts - 1));
 
-    DataVector z_squared = square(get<2>(inertial_coords));
-    DataVector varphi_squared = spherical_radius_squared - z_squared;
+//     DataVector z_squared = square(get<2>(inertial_coords));
+//     DataVector varphi_squared = spherical_radius_squared - z_squared;
 
-    for (size_t m = 0; m < num_grid_pts; ++m) {
-      const double& spherical_r_sq = get_element(spherical_radius_squared, m);
-      const double& r_sq = get_element(r_squared, m);
+//     for (size_t m = 0; m < num_grid_pts; ++m) {
+//       const double& spherical_r_sq = get_element(spherical_radius_squared,
+//       m); const double& r_sq = get_element(r_squared, m);
 
-      // Heck the coordinate & physical singularity on the disk x^2 + y^2 = a^2
+//       // Heck the coordinate & physical singularity on the disk x^2 + y^2 =
+//       a^2
 
-      const double delta = 1e-2;
+//       const double delta = 1e-2;
 
-      const bool inside_singularity =
-          get_element(varphi_squared, m) <= square(spin_);
-      const bool close_to_xy_plane = get_element(z_squared, m) < square(delta);
+//       const bool inside_singularity =
+//           get_element(varphi_squared, m) <= square(spin_);
+//       const bool close_to_xy_plane = get_element(z_squared, m) <
+//       square(delta);
 
-      if (inside_singularity and close_to_xy_plane) {
-        get_element(get<2>(regularized_coords), m) = sign_z * delta;
-      }
-    }
-  }
-
-  return regularized_coords;
-}
+//       if (inside_singularity and close_to_xy_plane) {
+//         get_element(get<2>(regularized_coords), m) = sign_z * delta;
+//       }
+//     }
+//   }
+//   return regularized_coords;
+// }
 
 tuples::TaggedTuple<Tags::TildeE> MagnetosphericWald::variables(
     const tnsr::I<DataVector, 3>& x, tmpl::list<Tags::TildeE> /*meta*/) {
@@ -109,53 +113,85 @@ tuples::TaggedTuple<Tags::TildeE> MagnetosphericWald::variables(
 }
 
 tuples::TaggedTuple<Tags::TildeB> MagnetosphericWald::variables(
-    const tnsr::I<DataVector, 3>& cartesian_coords,
+    const tnsr::I<DataVector, 3>& cartesian_bar_coords,
     tmpl::list<Tags::TildeB> /*meta*/) const {
   auto tilde_b = make_with_value<tnsr::I<DataVector, 3, Frame::Inertial>>(
-      cartesian_coords, 0.0);
+      cartesian_bar_coords, 0.0);
 
   // FIXME : make this as member variables? option?
   const double mass = 1.0;
   const double B0 = 1.0;
   const double a_squared = square(spin_);
 
-  const auto& x = get<0>(cartesian_coords);
-  const auto& y = get<1>(cartesian_coords);
-  const auto& z = get<2>(cartesian_coords);
+  const auto& x_bar = get<0>(cartesian_bar_coords);
+  const auto& y_bar = get<1>(cartesian_bar_coords);
+  const auto& z_bar = get<2>(cartesian_bar_coords);
 
   // FIXME : combine this into a single allocation
-  DataVector r_squared =
-      get(kerr_schild_coords_.r_coord_squared(cartesian_coords));
-  DataVector r_coords = sqrt(r_squared);
-  DataVector z_squared = square(z);
-  DataVector prefactor_1 = (r_squared - a_squared) / (r_squared + a_squared);
-  DataVector temp = square(r_squared) + square(spin_) * z_squared;
+  // DataVector r_squared =
+  //     get(kerr_schild_coords_.r_coord_squared(cartesian_coords));
+  // DataVector r_coords = sqrt(r_squared);
+  // DataVector z_squared = square(z);
+  // DataVector prefactor_1 = (r_squared - a_squared) / (r_squared +
+  // a_squared); DataVector temp = square(r_squared) + square(spin_) *
+  // z_squared;
 
-  for (size_t m = 0; m < get_size(r_squared); ++m) {
-    if (UNLIKELY(r_squared[m] < 1.0e-15)) {
-      get<0>(tilde_b)[m] = 0.0;
-      get<1>(tilde_b)[m] = 0.0;
-      get<2>(tilde_b)[m] = 1.0;
-    } else {
-      const double temp2 = get_element(r_squared, m) *
-                           get_element(r_coords, m) * get_element(z, m);
+  // for (size_t m = 0; m < get_size(r_squared); ++m) {
+  //   if (UNLIKELY(r_squared[m] < 1.0e-15)) {
+  //     get<0>(tilde_b)[m] = 0.0;
+  //     get<1>(tilde_b)[m] = 0.0;
+  //     get<2>(tilde_b)[m] = 1.0;
+  //   } else {
+  //     const double temp2 = get_element(r_squared, m) *
+  //                          get_element(r_coords, m) * get_element(z, m);
 
-      get_element(get<0>(tilde_b), m) =
-          2.0 * spin_ * mass * B0 * get_element(prefactor_1, m) * temp2 *
-          (spin_ * x[m] - r_coords[m] * y[m]) / square(get_element(temp, m));
+  //     get_element(get<0>(tilde_b), m) =
+  //         2.0 * spin_ * mass * B0 * get_element(prefactor_1, m) * temp2 *
+  //         (spin_ * x[m] - r_coords[m] * y[m]) / square(get_element(temp,
+  //         m));
 
-      get_element(get<1>(tilde_b), m) =
-          2.0 * spin_ * mass * B0 * get_element(prefactor_1, m) * temp2 *
-          (r_coords[m] * x[m] + spin_ * y[m]) / square(get_element(temp, m));
+  //     get_element(get<1>(tilde_b), m) =
+  //         2.0 * spin_ * mass * B0 * get_element(prefactor_1, m) * temp2 *
+  //         (r_coords[m] * x[m] + spin_ * y[m]) / square(get_element(temp,
+  //         m));
 
-      get_element(get<2>(tilde_b), m) =
-          1.0 - 2 * a_squared * mass * get_element(r_coords, m) *
-                    (get_element(r_squared, m) + get_element(z_squared, m)) /
-                    ((get_element(r_squared, m) + a_squared) *
-                     (square(r_squared)[m] + a_squared * z_squared[m]));
-    }
-  }
+  //     get_element(get<2>(tilde_b), m) =
+  //         1.0 - 2 * a_squared * mass * get_element(r_coords, m) *
+  //                   (get_element(r_squared, m) + get_element(z_squared,
+  //                   m)) /
+  //                   ((get_element(r_squared, m) + a_squared) *
+  //                    (square(r_squared)[m] + a_squared * z_squared[m]));
+  //   }
+  // }
+  // get<2>(tilde_b) *= B0;
 
+  const DataVector r_squared =
+      get(dot_product(cartesian_bar_coords, cartesian_bar_coords));
+  const DataVector r = sqrt(r_squared);
+  const DataVector r_to_the_fourth = square(r_squared);
+  const DataVector z_squared = square(z_bar);
+  // r^4 + a^2 z^2
+  const DataVector temp1 = r_to_the_fourth + a_squared * z_squared;
+  const DataVector temp2 = square(temp1) + 2.0 * mass * r_to_the_fourth * r *
+                                               (r_squared - a_squared);
+  const DataVector temp3 = temp1 * (r_squared - z_squared) -
+                           4.0 * r_to_the_fourth * (r_squared + z_squared);
+
+  get<0>(tilde_b) =
+      (spin_ * x_bar - r * y_bar) * temp2 + spin_ * mass * r * x_bar * temp3;
+  get<1>(tilde_b) =
+      (r * x_bar + spin_ * y_bar) * temp2 + spin_ * mass * r * y_bar * temp3;
+
+  get<0>(tilde_b) *= spin_ * B0 * z_bar / (r_to_the_fourth * square(temp1));
+  get<1>(tilde_b) *= spin_ * B0 * z_bar / (r_to_the_fourth * square(temp1));
+
+  get<2>(tilde_b) = 1.0 + (a_squared * z_squared / r_to_the_fourth);
+  get<2>(tilde_b) +=
+      mass * a_squared *
+      (1.0 - z_squared * (a_squared + z_squared) *
+                 (5.0 * r_to_the_fourth + a_squared * z_squared) /
+                 square(temp1)) /
+      (r_squared * r);
   get<2>(tilde_b) *= B0;
 
   return tilde_b;

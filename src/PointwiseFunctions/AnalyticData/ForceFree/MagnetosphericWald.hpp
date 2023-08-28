@@ -9,12 +9,10 @@
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "Options/String.hpp"
 #include "PointwiseFunctions/AnalyticData/AnalyticData.hpp"
-#include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/KerrSchild.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/SphericalKerrSchild.hpp"
 #include "PointwiseFunctions/GeneralRelativity/KerrSchildCoords.hpp"
 #include "PointwiseFunctions/InitialDataUtilities/InitialData.hpp"
 #include "Utilities/TMPL.hpp"
-
-#include <iostream>
 
 /// \cond
 class DataVector;
@@ -140,13 +138,14 @@ class MagnetosphericWald : public evolution::initial_data::InitialData,
   tuples::TaggedTuple<Tag> variables(const tnsr::I<DataVector, 3>& x,
                                      tmpl::list<Tag> /*meta*/) const {
     constexpr double dummy_time = 0.0;
-    return background_spacetime_.variables(regularize_coords(x), dummy_time,
-                                           tmpl::list<Tag>{});
+    // return background_spacetime_.variables(regularize_coords(x), dummy_time,
+    //    tmpl::list<Tag>{});
+    return background_spacetime_.variables(x, dummy_time, tmpl::list<Tag>{});
   }
 
  private:
   double spin_ = std::numeric_limits<double>::signaling_NaN();
-  gr::Solutions::KerrSchild background_spacetime_{};
+  gr::Solutions::SphericalKerrSchild background_spacetime_{};
   gr::KerrSchildCoords kerr_schild_coords_{};
 
   tnsr::I<DataVector, 3, Frame::Inertial> regularize_coords(

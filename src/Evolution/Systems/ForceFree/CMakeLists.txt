@@ -13,7 +13,9 @@ spectre_target_sources(
   ElectricCurrentDensity.cpp
   ElectromagneticVariables.cpp
   Fluxes.cpp
+  ImposeMhdConditionInsideNs.cpp
   InitialGuess.cpp
+  NsInteriorSpatialVelocity.cpp
   Sources.cpp
   TimeDerivativeTerms.cpp
   VolumeTermsInstantiation.cpp
@@ -29,7 +31,9 @@ spectre_target_headers(
   ElectromagneticVariables.hpp
   Fluxes.hpp
   InitialGuess.hpp
+  ImposeMhdConditionInsideNs.hpp
   MaskNeutronStarInterior.hpp
+  NsInteriorSpatialVelocity.hpp
   PoyntingVector.hpp
   Sources.hpp
   System.hpp
@@ -54,6 +58,7 @@ target_link_libraries(
   ForceFreeAnalyticData
   ForceFreeSolutions
   GeneralRelativity
+  Hydro
   Options
   Parallel
   Spectral

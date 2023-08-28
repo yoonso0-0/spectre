@@ -16,11 +16,9 @@
 #include "Domain/Creators/TimeDependence/RegisterDerivedWithCharm.hpp"
 #include "Domain/FunctionsOfTime/RegisterDerivedWithCharm.hpp"
 #include "Domain/Tags.hpp"
-#include "Evolution/Actions/BackgroundGrVars.hpp"
 #include "Evolution/Actions/RunEventsAndDenseTriggers.hpp"
 #include "Evolution/Actions/RunEventsAndTriggers.hpp"
 #include "Evolution/ComputeTags.hpp"
-#include "Evolution/DgSubcell/Actions/BackgroundGrVars.hpp"
 #include "Evolution/DgSubcell/Actions/Initialize.hpp"
 #include "Evolution/DgSubcell/Actions/Labels.hpp"
 #include "Evolution/DgSubcell/Actions/ReconstructionCommunication.hpp"
@@ -28,6 +26,7 @@
 #include "Evolution/DgSubcell/Actions/TakeTimeStep.hpp"
 #include "Evolution/DgSubcell/Actions/TciAndRollback.hpp"
 #include "Evolution/DgSubcell/Actions/TciAndSwitchToDg.hpp"
+#include "Evolution/DgSubcell/BackgroundGrVars.hpp"
 #include "Evolution/DgSubcell/CartesianFluxDivergence.hpp"
 #include "Evolution/DgSubcell/CellCenteredFlux.hpp"
 #include "Evolution/DgSubcell/ComputeBoundaryTerms.hpp"
@@ -72,11 +71,15 @@
 #include "Evolution/Systems/ForceFree/FiniteDifference/Reconstructor.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/RegisterDerivedWithCharm.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Tags.hpp"
+#include "Evolution/Systems/ForceFree/HeckInsideHorizon.hpp"
+#include "Evolution/Systems/ForceFree/ImposeMhdConditionInsideNs.hpp"
 #include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
+#include "Evolution/Systems/ForceFree/NsInteriorSpatialVelocity.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/GhostData.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/NeighborPackagedData.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/SetInitialRdmpData.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/SwapGrTags.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/SwapMask.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/TciOnDgGrid.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/TciOnFdGrid.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/TciOptions.hpp"
@@ -87,13 +90,14 @@
 #include "IO/Observer/Actions/RegisterWithObservers.hpp"
 #include "IO/Observer/Helpers.hpp"
 #include "IO/Observer/ObserverComponent.hpp"
-#include "Options/Options.hpp"
 #include "Options/Protocols/FactoryCreation.hpp"
+#include "Options/String.hpp"
 #include "Parallel/InitializationFunctions.hpp"
 #include "Parallel/Local.hpp"
 #include "Parallel/Phase.hpp"
 #include "Parallel/PhaseControl/CheckpointAndExitAfterWallclock.hpp"
 #include "Parallel/PhaseControl/ExecutePhaseChange.hpp"
+#include "Parallel/PhaseControl/Factory.hpp"
 #include "Parallel/PhaseControl/PhaseChange.hpp"
 #include "Parallel/PhaseControl/VisitAndReturn.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"
@@ -105,6 +109,7 @@
 #include "ParallelAlgorithms/Actions/TerminatePhase.hpp"
 #include "ParallelAlgorithms/Events/Factory.hpp"
 #include "ParallelAlgorithms/Events/Tags.hpp"
+#include "ParallelAlgorithms/EventsAndTriggers/Actions/RunEventsOnFailure.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/Completion.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/Event.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/EventsAndTriggers.hpp"
@@ -114,6 +119,7 @@
 #include "PointwiseFunctions/AnalyticData/ForceFree/Factory.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/ForceFree/Factory.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
+#include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "PointwiseFunctions/InitialDataUtilities/InitialData.hpp"
 #include "Time/Actions/AdvanceTime.hpp"
 #include "Time/Actions/RecordTimeStepperData.hpp"
@@ -130,12 +136,11 @@
 #include "Time/Triggers/TimeTriggers.hpp"
 #include "Utilities/Blas.hpp"
 #include "Utilities/ErrorHandling/FloatingPointExceptions.hpp"
+#include "Utilities/ErrorHandling/SegfaultHandler.hpp"
 #include "Utilities/MemoryHelpers.hpp"
 #include "Utilities/ProtocolHelpers.hpp"
 #include "Utilities/Serialization/RegisterDerivedClassesWithCharm.hpp"
 #include "Utilities/TMPL.hpp"
-
-#include "Evolution/Systems/ForceFree/InitialGuess.hpp"
 
 /// \cond
 namespace PUP {
@@ -177,7 +182,7 @@ struct EvolutionMetavars {
 
   using error_tags = db::wrap_tags_in<Tags::Error, analytic_variables_tags>;
 
-  using observe_fields = tmpl::push_back<
+  using observe_fields = tmpl::flatten<tmpl::push_back<
       tmpl::append<
           typename system::variables_tag::tags_list, error_tags,
           tmpl::conditional_t<use_dg_subcell,
@@ -194,12 +199,15 @@ struct EvolutionMetavars {
           evolution::dg::subcell::Tags::ObserverCoordinatesCompute<
               volume_dim, Frame::Inertial>,
           domain::Tags::Coordinates<volume_dim, Frame::Inertial>>,
+      gr::Tags::Lapse<DataVector>, gr::Tags::Shift<DataVector, 3>,
       ForceFree::Tags::ElectricFieldCompute,
       ForceFree::Tags::MagneticFieldCompute,
       ForceFree::Tags::ChargeDensityCompute,
       ForceFree::Tags::ElectricCurrentDensityCompute,
       ForceFree::Tags::ElectricFieldDotMagneticFieldCompute,
-      ForceFree::Tags::MagneticDominanceViolationCompute>;
+      ForceFree::Tags::MagneticDominanceViolationCompute,
+      ForceFree::Tags::JouleHeatingCompute,
+      ForceFree::Tags::NsInteriorSpatialVelocity>>;
 
   using non_tensor_compute_tags = tmpl::list<
       tmpl::conditional_t<
@@ -225,10 +233,7 @@ struct EvolutionMetavars {
                        Events::time_events<system>>>>,
         tmpl::pair<evolution::initial_data::InitialData, initial_data_list>,
         tmpl::pair<LtsTimeStepper, TimeSteppers::lts_time_steppers>,
-        tmpl::pair<PhaseChange,
-                   tmpl::list<PhaseControl::VisitAndReturn<
-                                  Parallel::Phase::LoadBalancing>,
-                              PhaseControl::CheckpointAndExitAfterWallclock>>,
+        tmpl::pair<PhaseChange, PhaseControl::factory_creatable_classes>,
         tmpl::pair<StepChooser<StepChooserUse::LtsStep>,
                    StepChoosers::standard_step_choosers<system>>,
         tmpl::pair<
@@ -273,6 +278,7 @@ struct EvolutionMetavars {
   using dg_step_actions = tmpl::flatten<tmpl::list<
       Actions::MutateApply<
           evolution::dg::BackgroundGrVars<system, EvolutionMetavars, true>>,
+      // ForceFree::Actions::ObserveEdotB<true>,
       evolution::dg::Actions::ComputeTimeDerivative<
           volume_dim, system, AllStepChoosers, local_time_stepping>,
       tmpl::conditional_t<
@@ -301,18 +307,27 @@ struct EvolutionMetavars {
       // implicit step
       tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,
                           tmpl::list<>>,
-
       //   ForceFree::Actions::ObserveEdotB<false>,
 
-      Limiters::Actions::SendData<EvolutionMetavars>,
-      Limiters::Actions::Limit<EvolutionMetavars>>>;
+      // Interior BC or heck inside the horizon, depending on the ID type
+      Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>
+      //   tmpl::conditional_t<
+      //       running_bh_test,
+      // Actions::MutateApply<ForceFree::HeckInsideHorizon<EvolutionMetavars>>,
+      //       tmpl::list<>>,
+
+      //   Limiters::Actions::SendData<EvolutionMetavars>,
+      //   Limiters::Actions::Limit<EvolutionMetavars>>
+      >>;
 
   // FIXME add Dense events for local time stepping
   using dg_subcell_step_actions = tmpl::flatten<tmpl::list<
       evolution::dg::subcell::Actions::SelectNumericalMethod,
 
       Actions::Label<evolution::dg::subcell::Actions::Labels::BeginDg>,
-      evolution::Actions::BackgroundGrVars<system, true>,
+      // try using mutator
+      Actions::MutateApply<
+          evolution::dg::BackgroundGrVars<system, EvolutionMetavars, true>>,
       evolution::dg::Actions::ComputeTimeDerivative<
           volume_dim, system, AllStepChoosers, local_time_stepping>,
       tmpl::list<
@@ -328,6 +343,8 @@ struct EvolutionMetavars {
       // implicit step
       tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,
                           tmpl::list<>>,
+      // Interior BC
+      Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>,
 
       evolution::dg::subcell::Actions::TciAndRollback<
           ForceFree::subcell::TciOnDgGrid>,
@@ -335,13 +352,23 @@ struct EvolutionMetavars {
       Actions::Goto<evolution::dg::subcell::Actions::Labels::EndOfSolvers>,
 
       Actions::Label<evolution::dg::subcell::Actions::Labels::BeginSubcell>,
-      evolution::dg::subcell::Actions::BackgroundGrVars<system, true>,
+      //   at the beginning : compute all
+      Actions::MutateApply<evolution::dg::subcell::BackgroundGrVars<
+          system, EvolutionMetavars, true, false>>,
+      //
       evolution::dg::subcell::Actions::SendDataForReconstruction<
           volume_dim, ForceFree::subcell::GhostVariables, local_time_stepping>,
       evolution::dg::subcell::Actions::ReceiveDataForReconstruction<volume_dim>,
       Actions::Label<
           evolution::dg::subcell::Actions::Labels::BeginSubcellAfterDgRollback>,
+      //   PUt background gr here
+      //   only update subcell GR vars when we did rollback, check DIDROLLBACK
+      //   tag. compute all.
+      Actions::MutateApply<evolution::dg::subcell::BackgroundGrVars<
+          system, EvolutionMetavars, true, true>>,
+      //
       Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
+      Actions::MutateApply<ForceFree::subcell::SwapMask>,
       evolution::dg::subcell::fd::Actions::TakeTimeStep<
           ForceFree::subcell::TimeDerivative>,
       Actions::RecordTimeStepperData<system>,
@@ -353,10 +380,13 @@ struct EvolutionMetavars {
       // implicit step
       tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,
                           tmpl::list<>>,
+      // Interior BC
+      Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>,
 
       evolution::dg::subcell::Actions::TciAndSwitchToDg<
           ForceFree::subcell::TciOnFdGrid>,
       Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
+      Actions::MutateApply<ForceFree::subcell::SwapMask>,
       Actions::Label<evolution::dg::subcell::Actions::Labels::EndOfSolvers>>>;
 
   using step_actions =
@@ -383,11 +413,34 @@ struct EvolutionMetavars {
       Initialization::Actions::AddSimpleTags<
           evolution::dg::BackgroundGrVars<system, EvolutionMetavars, true>>,
       Initialization::Actions::ConservativeSystem<system>,
-      evolution::Initialization::Actions::SetVariables<
-          domain::Tags::Coordinates<3, Frame::ElementLogical>>,
+      //   evolution::Initialization::Actions::SetVariables<
+      //   domain::Tags::Coordinates<3, Frame::ElementLogical>>,
 
       Initialization::Actions::AddSimpleTags<
           ForceFree::MaskNeutronStarInterior<EvolutionMetavars, false>>,
+
+      tmpl::conditional_t<
+          use_dg_subcell,
+          tmpl::list<
+              evolution::dg::subcell::Actions::SetSubcellGrid<volume_dim,
+                                                              system, false>,
+              Initialization::Actions::AddSimpleTags<
+                  evolution::dg::subcell::BackgroundGrVars<
+                      system, EvolutionMetavars, true, false>,
+                  ForceFree::MaskNeutronStarInterior<EvolutionMetavars, true>>,
+
+              Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
+              Actions::MutateApply<ForceFree::subcell::SwapMask>,
+
+              evolution::dg::subcell::Actions::SetAndCommunicateInitialRdmpData<
+                  volume_dim, ForceFree::subcell::SetInitialRdmpData>,
+              evolution::dg::subcell::Actions::ComputeAndSendTciOnInitialGrid<
+                  volume_dim, system, ForceFree::subcell::TciOnFdGrid>,
+              evolution::dg::subcell::Actions::SetInitialGridFromTciData<
+                  volume_dim, system>,
+              Actions::MutateApply<ForceFree::subcell::SwapGrTags>>,
+          tmpl::list<evolution::Initialization::Actions::SetVariables<
+              domain::Tags::Coordinates<3, Frame::ElementLogical>>>>,
 
       // note : imex::Initialize mutator needs to be executed after
       //        the TimeStepperHistory action
@@ -396,21 +449,12 @@ struct EvolutionMetavars {
           Initialization::Actions::InitializeItems<imex::Initialize<system>>,
           tmpl::list<>>,
 
-      tmpl::conditional_t<
-          use_dg_subcell,
-          tmpl::list<
-              evolution::dg::subcell::Actions::Initialize<
-                  volume_dim, system, ForceFree::subcell::DgInitialDataTci>,
-              evolution::dg::subcell::Actions::BackgroundGrVars<system, false>,
-              Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
-              Actions::MutateApply<ForceFree::subcell::SetInitialRdmpData>>,
-          tmpl::list<>>,
-
-      Initialization::Actions::AddComputeTags<
-          tmpl::list<ForceFree::Tags::TildeESquaredCompute,
-                     ForceFree::Tags::TildeBSquaredCompute,
-                     ForceFree::Tags::TildeEDotTildeBCompute,
-                     ForceFree::Tags::ComputeTildeJ>>,
+      Initialization::Actions::AddComputeTags<tmpl::list<
+          ForceFree::Tags::TildeESquaredCompute,
+          ForceFree::Tags::TildeBSquaredCompute,
+          ForceFree::Tags::TildeEDotTildeBCompute,
+          ForceFree::Tags::ComputeTildeJ,
+          ForceFree::Tags::NsInteriorSpatialVelocityCompute<use_dg_subcell>>>,
 
       Initialization::Actions::AddComputeTags<
           StepChoosers::step_chooser_compute_tags<EvolutionMetavars,
@@ -437,7 +481,7 @@ struct EvolutionMetavars {
           Parallel::PhaseActions<
               Parallel::Phase::Evolve,
               tmpl::list<evolution::Actions::RunEventsAndTriggers,
-                         Actions::ChangeSlabSize, dg_step_actions,
+                         Actions::ChangeSlabSize, step_actions,
                          Actions::AdvanceTime,
                          PhaseControl::Actions::ExecutePhaseChange>>>>;
 
@@ -476,4 +520,4 @@ static const std::vector<void (*)()> charm_init_node_funcs{
     &register_factory_classes_with_charm<metavariables>};
 
 static const std::vector<void (*)()> charm_init_proc_funcs{
-    &enable_floating_point_exceptions};
+    &enable_floating_point_exceptions, &enable_segfault_handler};

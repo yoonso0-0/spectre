@@ -12,15 +12,19 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "PointwiseFunctions/GeneralRelativity/IndexManipulation.hpp"
+#include "PointwiseFunctions/Hydro/LorentzFactor.hpp"
 #include "Utilities/ContainerHelpers.hpp"
 #include "Utilities/GenerateInstantiations.hpp"
 #include "Utilities/Gsl.hpp"
+#include "Utilities/SetNumberOfGridPoints.hpp"
+
+#include <iostream>
 
 namespace ForceFree {
 
 namespace {
 
-template <bool IncludeDriftCurrent, bool IncludeParallelCurrent>
+template <bool IncludeExplicitPart, bool IncludeImplicitPart>
 void tilde_j_impl(
     const gsl::not_null<tnsr::I<DataVector, 3, Frame::Inertial>*> tilde_j,
     const Scalar<DataVector>& tilde_q,
@@ -28,13 +32,21 @@ void tilde_j_impl(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const double parallel_conductivity, const Scalar<DataVector>& lapse,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
-    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
-  static_assert(IncludeDriftCurrent or IncludeParallelCurrent);
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) {
+  static_assert(IncludeExplicitPart or IncludeImplicitPart);
+
+  // FIXME : for subcell, handle this with Tags not destructive resize function.
+  const size_t num_grid_pts = get(tilde_q).size();
+  set_number_of_grid_points(tilde_j, num_grid_pts);
 
   Variables<tmpl::list<::Tags::Tempi<0, 3>, ::Tags::Tempi<1, 3>,
                        ::Tags::TempScalar<0>, ::Tags::TempScalar<1>,
-                       ::Tags::TempScalar<2>>>
-      buffer{get(lapse).size()};
+                       ::Tags::TempScalar<2>,
+                       //
+                       ::Tags::Tempi<2, 3>, ::Tags::TempScalar<3>,
+                       ::Tags::TempScalar<4>, ::Tags::TempScalar<5>>>
+      buffer{num_grid_pts};
 
   // compute one-forms of TildeE and TildeB in advance to reduce the number of
   // dot products using spatial metric (which are slower than dot products
@@ -52,7 +64,7 @@ void tilde_j_impl(
   auto& tilde_b_squared = get<::Tags::TempScalar<0>>(buffer);
   dot_product(make_not_null(&tilde_b_squared), tilde_b, tilde_b_one_form);
 
-  if constexpr (IncludeParallelCurrent) {
+  if constexpr (IncludeImplicitPart) {
     (void)tilde_q;                  // avoid compiler warnings
     (void)sqrt_det_spatial_metric;  // avoid compiler warnings
 
@@ -76,7 +88,7 @@ void tilde_j_impl(
     }
   }
 
-  if constexpr (IncludeDriftCurrent) {
+  if constexpr (IncludeExplicitPart) {
     (void)parallel_conductivity;  // avoid compiler warnings
 
     for (LeviCivitaIterator<3> it; it; ++it) {
@@ -95,6 +107,70 @@ void tilde_j_impl(
   for (size_t i = 0; i < 3; ++i) {
     (*tilde_j).get(i) *= get(lapse) / get(tilde_b_squared);
   }
+
+  if (neutron_star_interior_mask.has_value()) {
+    ASSERT(num_grid_pts == get(neutron_star_interior_mask.value()).size(),
+           "Mask size (" << get(neutron_star_interior_mask.value()).size()
+                         << ") does not match the number of grid points ("
+                         << num_grid_pts << ") ");
+
+    // std::cout << "Has Mask" << std::endl;
+
+    for (size_t m = 0; m < num_grid_pts; ++m) {
+      const auto& mask_value = get(*neutron_star_interior_mask)[m];
+
+      if (mask_value > 0.0) {
+        // Exterior (magnetosphere)
+        continue;
+      } else {
+        // Interior (MHD condition)
+
+        // When overwriting fields, just set to zero...
+        for (size_t d = 0; d < 3; ++d) {
+          (*tilde_j).get(d)[m] = 0.0;
+        }
+
+        // ------------------------ Resistive Ohm's law
+        // Explicit part
+        // if constexpr (IncludeExplicitPart) {
+        //   for (size_t d = 0; d < 3; ++d) {
+        //     // J^i = q v^i
+        //     (*tilde_j).get(d)[m] = get(lapse)[m] * get(tilde_q)[m] *
+        //                            ns_interior_spatial_velocity.get(d)[m];
+        //   }
+        // } else {
+        //   for (size_t d = 0; d < 3; ++d) {
+        //     (*tilde_j).get(d)[m] = 0.0;
+        //   }
+        // }
+        // const double aws = get(lapse)[m] * get(ns_interior_lorentz_factor)[m]
+        // *
+        //                    parallel_conductivity;
+        // if constexpr (IncludeImplicitPart) {
+        //   for (LeviCivitaIterator<3> it; it; ++it) {
+        //     const auto& i = it[0];
+        //     const auto& j = it[1];
+        //     const auto& k = it[2];
+        //     (*tilde_j).get(i)[m] +=
+        //         aws * it.sign() * ns_interior_spatial_velocity_form.get(j)[m]
+        //         * tilde_b_one_form.get(k)[m] /
+        //         get(sqrt_det_spatial_metric)[m];  // the extra 1/sqrt{gamma}
+        //                                           // factor comes from the
+        //                                           // spatial Levi-Civita
+        //                                           tensor
+        //   }
+
+        //   for (size_t d = 0; d < 3; ++d) {
+        //     (*tilde_j).get(d)[m] +=
+        //         aws *
+        //         (tilde_e.get(d)[m] - get(tilde_e_dot_ns_spatial_velocity)[m]
+        //         *
+        //                        ns_interior_spatial_velocity.get(d)[m]);
+        //   }
+        // }
+      }
+    }
+  }
 }
 
 }  // namespace
@@ -106,10 +182,11 @@ void ComputeDriftTildeJ::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const double parallel_conductivity, const Scalar<DataVector>& lapse,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
-    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
-  tilde_j_impl<true, false>(drift_tilde_j, tilde_q, tilde_e, tilde_b,
-                            parallel_conductivity, lapse,
-                            sqrt_det_spatial_metric, spatial_metric);
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) {
+  tilde_j_impl<true, false>(
+      drift_tilde_j, tilde_q, tilde_e, tilde_b, parallel_conductivity, lapse,
+      sqrt_det_spatial_metric, spatial_metric, neutron_star_interior_mask);
 }
 
 void ComputeParallelTildeJ::apply(
@@ -120,10 +197,11 @@ void ComputeParallelTildeJ::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const double parallel_conductivity, const Scalar<DataVector>& lapse,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
-    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
-  tilde_j_impl<false, true>(parallel_tilde_j, tilde_q, tilde_e, tilde_b,
-                            parallel_conductivity, lapse,
-                            sqrt_det_spatial_metric, spatial_metric);
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) {
+  tilde_j_impl<false, true>(
+      parallel_tilde_j, tilde_q, tilde_e, tilde_b, parallel_conductivity, lapse,
+      sqrt_det_spatial_metric, spatial_metric, neutron_star_interior_mask);
 }
 
 namespace Tags {
@@ -134,10 +212,11 @@ void ComputeTildeJ::function(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const double parallel_conductivity, const Scalar<DataVector>& lapse,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
-    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
-  tilde_j_impl<true, true>(tilde_j, tilde_q, tilde_e, tilde_b,
-                           parallel_conductivity, lapse,
-                           sqrt_det_spatial_metric, spatial_metric);
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) {
+  tilde_j_impl<true, true>(
+      tilde_j, tilde_q, tilde_e, tilde_b, parallel_conductivity, lapse,
+      sqrt_det_spatial_metric, spatial_metric, neutron_star_interior_mask);
 }
 }  // namespace Tags
 
@@ -149,13 +228,16 @@ void StiffSourceTildeE ::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const double parallel_conductivity, const Scalar<DataVector>& lapse,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
-    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) {
   ComputeParallelTildeJ::apply(stiff_source_tilde_e, tilde_q, tilde_e, tilde_b,
                                parallel_conductivity, lapse,
-                               sqrt_det_spatial_metric, spatial_metric);
+                               sqrt_det_spatial_metric, spatial_metric,
+                               neutron_star_interior_mask);
   for (size_t i = 0; i < 3; ++i) {
     (*stiff_source_tilde_e).get(i) *= -1.0;
   }
+  // std::cout << "Stiff source term : " << *stiff_source_tilde_e << std::endl;
 }
 
 void StiffSourceTildeEJacobian::apply(
@@ -163,9 +245,12 @@ void StiffSourceTildeEJacobian::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_e,
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const double parallel_conductivity, const Scalar<DataVector>& lapse,
-    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) {
   Variables<tmpl::list<::Tags::TempScalar<0>, ::Tags::TempScalar<1>,
-                       ::Tags::Tempi<0, 3>, ::Tags::Tempi<1, 3>>>
+                       ::Tags::Tempi<0, 3>, ::Tags::Tempi<1, 3>,
+                       //
+                       ::Tags::TempScalar<2>, ::Tags::Tempi<2, 3>>>
       buffer{get(lapse).size()};
 
   auto& tilde_e_squared = get<::Tags::TempScalar<0>>(buffer);
@@ -197,6 +282,24 @@ void StiffSourceTildeEJacobian::apply(
     for (size_t j = 0; j < 3; ++j) {
       (*d_source_e_d_tilde_e).get(i, j) *=
           -parallel_conductivity * get(lapse) / get(tilde_b_squared);
+    }
+  }
+
+  if (neutron_star_interior_mask.has_value()) {
+    for (size_t m = 0; m < get(lapse).size(); ++m) {
+      const auto& mask = get(*neutron_star_interior_mask)[m];
+
+      if (mask > 0.0) {  // Exterior (magnetosphere)
+        // do nothing
+        continue;
+      } else {  // Interior (MHD condition)
+        // When overwriting fields, just set to -1.0
+        for (size_t i = 0; i < 3; ++i) {
+          for (size_t j = 0; j < 3; ++j) {
+            (*d_source_e_d_tilde_e).get(i, j)[m] = -1.0;
+          }
+        }
+      }
     }
   }
 }

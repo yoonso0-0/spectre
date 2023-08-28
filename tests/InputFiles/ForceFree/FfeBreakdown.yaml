@@ -1,0 +1,173 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+Executable: EvolveForceFree
+Testing:
+  Check: parse;execute
+
+---
+
+InitialData: &InitialData
+  FfeBreakdown
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.0005
+  TimeStepper:
+    Rk3PareschiSsp4
+  ImexMode: Implicit
+  ImexImplicitSolveTolerance: 1.0e-10
+  # TimeStepper: Rk3HesthavenSsp
+
+Observers:
+  VolumeFileName: "ForceFreeFfeBreakdownLev5Volume"
+  ReductionFileName: "ForceFreeFfeBreakdownLev5Reductions"
+
+EvolutionSystem:
+  ForceFree:
+    ConstraintDamping:
+      KappaPsi: 1.0
+      KappaPhi: 1.0
+    ForceFreeCurrent:
+      ParallelConductivity: 1e4
+
+DomainCreator:
+  Brick:
+    LowerBound: [-0.25, -0.1, -0.1]
+    UpperBound: [0.25, 0.1, 0.1]
+    InitialRefinement: [5, 0, 0]
+    InitialGridPoints: [3, 3, 3]
+    TimeDependence: None
+    BoundaryConditionInX:
+      DirichletAnalytic:
+        AnalyticPrescription: *InitialData
+    BoundaryConditionInY: Periodic
+    BoundaryConditionInZ: Periodic
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Rusanov:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+    Subcell:
+      RdmpDelta0: 1.0e-2
+      RdmpEpsilon: 1.0e-2
+      PerssonExponent: 5.0
+      InitialData:
+        RdmpDelta0: 1.0e-7
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 4.0
+      AlwaysUseSubcells: false
+      SubcellToDgReconstructionMethod: DimByDim
+      UseHalo: false
+      OnlyDgBlocksAndGroups: None
+      FiniteDifferenceDerivativeOrder: 2
+    TciOptions:
+      CutoffTildeQ: 1.0e-8
+      CutoffTildeJ: 1.0e-5
+  SubcellSolver:
+    Reconstructor:
+      # MonotonisedCentral
+      Wcns5z:
+        NonlinearWeightExponent: 2
+        Epsilon: 1e-15
+        MaxNumberOfExtrema: 2
+        FallbackReconstructor: None
+      # AdaptiveOrder:
+      #   Alpha5: 1.0
+      #   Alpha7: 1.0
+      #   Alpha9: 1.0
+      #   LowOrderReconstructor: MonotonisedCentral
+
+EventsAndTriggers:
+  # - Trigger:
+  #     TimeCompares:
+  #       Comparison: GreaterThanOrEqualTo
+  #       Value: 0.04
+  #   Events:
+  #     - Completion
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [70]
+    Events:
+      - Completion
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [0]
+    Events:
+      - ChangeSlabSize:
+          DelayChange: 0
+          StepChoosers:
+            - Cfl:
+                SafetyFactor: 0.3
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 10
+          Offset: 0
+    Events:
+      - ObserveTimeStep:
+          SubfileName: time_steps
+          PrintTimeToTerminal: true
+          ObservePerCore: false
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 2
+          Offset: 0
+    Events:
+      - ObserveFields:
+          SubfileName: VolumeData
+          VariablesToObserve: [
+              ElectricField, MagneticField,
+              ChargeDensity,
+              TildeJ,
+              ElectricFieldDotMagneticField,
+              MagneticDominanceViolation,
+              JouleHeating,
+              TciStatus,
+            ]
+          InterpolateToMesh: None
+          CoordinatesFloatingPointType: Float
+          FloatingPointTypes: [Float]
+
+EventsAndDenseTriggers:
+  # - Trigger:
+  #     Times:
+  #       Specified:
+  #         Values: [0.0, 0.01, 0.02, 0.03, 0.04]
+  #   Events:
+  #     - ObserveFields:
+  #         SubfileName: VolumeData
+  #         VariablesToObserve: [
+  #           ElectricField,
+  #           MagneticField,
+  #           # ChargeDensity,
+  #           # SpatialCurrentDensity,
+  #           # TildeQ, Error(TildeQ),
+  #           # SpatialCurrentDensity,
+  #           # MagneticDivergenceCleaningField,
+  #           # ElectricDivergenceCleaningField,
+  #           ElectricFieldDotMagneticField
+  #           ]
+  #         InterpolateToMesh: None
+  #         CoordinatesFloatingPointType: Float
+  #         FloatingPointTypes: [Float]
+  #         OverrideObservationValue: None
+
+PhaseChangeAndTriggers:
+
+ResourceInfo:
+  AvoidGlobalProc0: false
+
+# Limiter:
+#   Minmod:
+#     Type: LambdaPiN
+#     # The optimal value of the TVB constant is problem-dependent.
+#     # This test uses 0 to favor robustness over accuracy.
+#     TvbConstant: 10.0
+#     # disable limiter for FFE runs
+#     DisableForDebugging: true

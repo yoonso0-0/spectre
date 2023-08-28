@@ -8,8 +8,8 @@ Testing:
 ---
 
 InitialData: &InitialData
-  OverlappingAlfvenWaves:
-    NormalizedWaveAmplitude: 0.1
+  AlfvenWave:
+    WaveSpeed: 0.0
 
 Evolution:
   InitialTime: 0.0
@@ -21,8 +21,8 @@ Evolution:
   ImexImplicitSolveTolerance: 1.0e-10
 
 Observers:
-  VolumeFileName: "ForceFreeOverlappingAlfvenWavesLev5Volume"
-  ReductionFileName: "ForceFreeOverlappingAlfvenWavesLev5Reductions"
+  VolumeFileName: "ForceFreeAlfvenWaveLev5Volume"
+  ReductionFileName: "ForceFreeAlfvenWaveLev5Reductions"
 
 EvolutionSystem:
   ForceFree:
@@ -30,16 +30,26 @@ EvolutionSystem:
       KappaPsi: 1.0
       KappaPhi: 1.0
     ForceFreeCurrent:
-      ParallelConductivity: 1e3
+      ParallelConductivity: 1e7
 
 DomainCreator:
   Brick:
-    LowerBound: [0, 0, 0]
-    UpperBound: [1.0, 1.0, 1.0]
-    InitialRefinement: [2, 2, 2]
-    InitialGridPoints: [5, 5, 5]
+    # LowerBound: [-0.0625, -0.1, -0.1]
+    # UpperBound: [0.0, 0.1, 0.1]
+    # InitialRefinement: [0, 0, 0]
+    # InitialGridPoints: [2, 2, 2]
+    # LowerBound: [-0.1, -0.1, -0.1]
+    # UpperBound: [0.1, 0.1, 0.1]
+    # InitialRefinement: [0, 0, 0]
+    # InitialGridPoints: [2, 2, 2]
+    LowerBound: [-1.5, -0.1, -0.1]
+    UpperBound: [1.5, 0.1, 0.1]
+    InitialRefinement: [5, 0, 0]
+    InitialGridPoints: [3, 3, 3]
     TimeDependence: None
-    BoundaryConditionInX: Periodic
+    BoundaryConditionInX:
+      DirichletAnalytic:
+        AnalyticPrescription: *InitialData
     BoundaryConditionInY: Periodic
     BoundaryConditionInZ: Periodic
 
@@ -58,36 +68,36 @@ SpatialDiscretization:
   DiscontinuousGalerkin:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
-  #   Subcell:
-  #     RdmpDelta0: 1.0e-2
-  #     RdmpEpsilon: 1.0e-2
-  #     PerssonExponent: 2.0
-  #     InitialData:
-  #       RdmpDelta0: 1.0e-7
-  #       RdmpEpsilon: 1.0e-3
-  #       PerssonExponent: 4.0
-  #     AlwaysUseSubcells: false
-  #     SubcellToDgReconstructionMethod: DimByDim
-  #     UseHalo: false
-  #     OnlyDgBlocksAndGroups: None
-  #     FiniteDifferenceDerivativeOrder: 2
-  #   TciOptions:
-  #     CutoffTildeQ: 1.0e-5
-  #     CutoffTildeJ: 1.0e-5
-  # SubcellSolver:
-  #   Reconstructor:
-  #     MonotonisedCentral
-      # Wcns5z:
-      #   NonlinearWeightExponent: 2
-      #   Epsilon: 1e-15
-      #   FallbackReconstructor: None
-      #   MaxNumberOfExtrema: 0
+    Subcell:
+      RdmpDelta0: 1.0e-7
+      RdmpEpsilon: 1.0e-3
+      PerssonExponent: 4.0
+      InitialData:
+        RdmpDelta0: 1.0e-7
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 4.0
+      AlwaysUseSubcells: false
+      SubcellToDgReconstructionMethod: DimByDim
+      UseHalo: false
+      OnlyDgBlocksAndGroups: None
+      FiniteDifferenceDerivativeOrder: 2
+    TciOptions:
+      CutoffTildeQ: 1.0e-1
+      CutoffTildeJ: 1.0e-1
+  SubcellSolver:
+    Reconstructor:
+      # MonotonisedCentral
+      Wcns5z:
+        NonlinearWeightExponent: 2
+        Epsilon: 1e-15
+        FallbackReconstructor: None
+        MaxNumberOfExtrema: 0
 
 EventsAndTriggers:
   - Trigger:
       Slabs:
         Specified:
-          Values: [10]
+          Values: [20]
     Events:
       - Completion
   # - Trigger:
@@ -105,7 +115,7 @@ EventsAndTriggers:
           DelayChange: 0
           StepChoosers:
             - Cfl:
-                SafetyFactor: 0.3
+                SafetyFactor: 0.25
   - Trigger:
       Slabs:
         EvenlySpaced:
@@ -119,7 +129,7 @@ EventsAndTriggers:
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 1
+          Interval: 2
           Offset: 0
     Events:
       - ObserveFields:
@@ -128,12 +138,11 @@ EventsAndTriggers:
               ElectricField, MagneticField,
               ChargeDensity,
               TildeJ,
-              TildePsi, TildePhi,
               # Error(TildeE), Error(TildeB),
               ElectricFieldDotMagneticField,
-              # MagneticDominanceViolation,
-              # JouleHeating,
-              # TciStatus,
+              MagneticDominanceViolation,
+              JouleHeating,
+              TciStatus,
             ]
           InterpolateToMesh: None
           CoordinatesFloatingPointType: Float

@@ -4,12 +4,12 @@
 Executable: EvolveForceFree
 Testing:
   Check: parse;execute
-  Priority: High
 
 ---
 
 InitialData: &InitialData
-  FastWave:
+  ExactWald:
+    MagneticFieldAmplitude : 1.0
 
 Evolution:
   InitialTime: 0.0
@@ -18,11 +18,12 @@ Evolution:
     Rk3PareschiSsp4
     # Rk3Kennedy
   ImexMode: Implicit
+  ImexImplicitSolveTolerance: 1.0e-10
   # TimeStepper: Rk3HesthavenSsp
 
 Observers:
-  VolumeFileName: "ForceFreeFastWaveLev4Volume"
-  ReductionFileName: "ForceFreeFastWaveLev4Reductions"
+  VolumeFileName: "ForceFreeWaldSolutionLev5Volume"
+  ReductionFileName: "ForceFreeWaldSolutionLev5Reductions"
 
 EvolutionSystem:
   ForceFree:
@@ -32,20 +33,40 @@ EvolutionSystem:
     ForceFreeCurrent:
       ParallelConductivity: 1e5
 
+# DomainCreator:
+  # Brick:
+  #   LowerBound: [3, 3, 3]
+  #   UpperBound: [-3, -3, -3]
+  #   InitialRefinement: [3, 3, 3]
+  #   InitialGridPoints: [4, 4, 4]
+  #   TimeDependence: None
+  #   BoundaryConditionInX: &Analytic
+  #     DirichletAnalytic:
+  #       AnalyticPrescription: *InitialData
+  #   BoundaryConditionInY: *Analytic
+  #   BoundaryConditionInZ: *Analytic
+
 DomainCreator:
-  Brick:
-    # LowerBound: [-0.2, -0.1, -0.1]
-    # UpperBound: [0.0, 0.1, 0.1]
-    LowerBound: [-0.5, -0.1, -0.1]
-    UpperBound: [0.5, 0.1, 0.1]
-    InitialRefinement: [5, 0, 0]
-    InitialGridPoints: [3, 3, 3]
-    TimeDependence: None
-    BoundaryConditionInX: &Analytic
+  Sphere:
+    InnerRadius: 2.0
+    OuterRadius: 8
+    Interior:
+      ExciseWithBoundaryCondition:
+        DirichletAnalytic:
+          AnalyticPrescription: *InitialData
+    InitialRefinement:
+      Shell0: [2, 2, 2]
+      Shell1: [1, 1, 1]
+    InitialGridPoints: 3
+    UseEquiangularMap: false
+    EquatorialCompression: None
+    RadialPartitioning: [4.0]
+    RadialDistribution: Linear
+    WhichWedges: All
+    TimeDependentMaps: None
+    OuterBoundaryCondition:
       DirichletAnalytic:
         AnalyticPrescription: *InitialData
-    BoundaryConditionInY: *Analytic
-    BoundaryConditionInZ: *Analytic
 
 SpatialDiscretization:
   BoundaryCorrection:
@@ -54,9 +75,9 @@ SpatialDiscretization:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
   #   Subcell:
-  #     RdmpDelta0: 1.0e-7
-  #     RdmpEpsilon: 1.0e-3
-  #     PerssonExponent: 4.0
+  #     RdmpDelta0: 1.0e-1
+  #     RdmpEpsilon: 1.0e-1
+  #     PerssonExponent: 2.0
   #     InitialData:
   #       RdmpDelta0: 1.0e-7
   #       RdmpEpsilon: 1.0e-3
@@ -67,7 +88,8 @@ SpatialDiscretization:
   #     OnlyDgBlocksAndGroups: None
   #     FiniteDifferenceDerivativeOrder: 2
   #   TciOptions:
-  #     CutoffTildeQ: 1.0e-15
+  #     CutoffTildeQ: 1.0e-2
+  #     CutoffTildeJ: 1.0e-2
   # SubcellSolver:
   #   Reconstructor:
   #     # MonotonisedCentral
@@ -75,21 +97,21 @@ SpatialDiscretization:
   #       NonlinearWeightExponent: 2
   #       Epsilon: 1e-15
   #       FallbackReconstructor: None
-  #       MaxNumberOfExtrema: 0
+  #       MaxNumberOfExtrema: 2
 
 EventsAndTriggers:
-  - Trigger:
-      Slabs:
-        Specified:
-          Values: [0]
-    Events:
-      - Completion
   # - Trigger:
   #     TimeCompares:
   #       Comparison: GreaterThanOrEqualTo
-  #       Value: 0.1 # run upto t = 0.5
+  #       Value: 0.06
   #   Events:
   #     - Completion
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [1]
+    Events:
+      - Completion
   - Trigger:
       Slabs:
         Specified:
@@ -99,67 +121,54 @@ EventsAndTriggers:
           DelayChange: 0
           StepChoosers:
             - Cfl:
-                SafetyFactor: 0.25
+                SafetyFactor: 0.3
+  # - Trigger:
+  #     Slabs:
+  #       EvenlySpaced:
+  #         Interval: 10
+  #         Offset: 0
+  #   Events:
+  #     - ObserveTimeStep:
+  #         SubfileName: time_steps
+  #         PrintTimeToTerminal: true
+  #         ObservePerCore: false
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 10
-          Offset: 0
-    Events:
-      - ObserveTimeStep:
-          SubfileName: time_steps
-          PrintTimeToTerminal: true
-          ObservePerCore: false
-  - Trigger:
-      Slabs:
-        EvenlySpaced:
-          Interval: 5
+          Interval: 1
           Offset: 0
     Events:
       - ObserveFields:
           SubfileName: VolumeData
           VariablesToObserve: [
-              # TildeE, TildeB,
-              ElectricField,
-              # MagneticField,
-              # ChargeDensity,
-              # TildeJ,
+              # ElectricField, MagneticField,
+              TildeE, TildeB,
+              Error(TildeE), Error(TildeB),
+              ChargeDensity,
+              TildeJ,
+              TildePhi, TildePsi,
               # SpatialCurrentDensity,
-              # Error(TildeE),
-              # Error(TildeB),
-              # Error(TildeQ),
-              # Error(TildeE), Error(TildeB),
-              # MagneticDivergenceCleaningField,
-              # ElectricDivergenceCleaningField,
-              # ElectricFieldDotMagneticField,
+              ElectricFieldDotMagneticField,
+              # NsInteriorSpatialVelocity,
               # TciStatus,
+              # NsInteriorMask,
+              Lapse, Shift,
             ]
           InterpolateToMesh: None
           CoordinatesFloatingPointType: Float
           FloatingPointTypes: [Float]
-          OverrideObservationValue: None
-  # - - Slabs:
-        # EvenlySpaced:
-        # Interval: 10
-        # Offset: 0
-        # Specified:
-          # Values: [200]
-    # - - ObserveNorms:
-          # SubfileName: Error
-          # TensorsToObserve:
-            # - Name: Error(TildeE)
-              # NormType: L2Norm
-              # Components: Sum
 
 EventsAndDenseTriggers:
-  # - - Times:
+  # - Trigger:
+  #     Times:
   #       Specified:
-  #         Values: [0.0, 0.5]
-  #   - - ObserveFields:
+  #         Values: [0.0, 0.01, 0.02, 0.03, 0.04]
+  #   Events:
+  #     - ObserveFields:
   #         SubfileName: VolumeData
   #         VariablesToObserve: [
-  #           ElectricField, MagneticField,
-  #           Error(TildeE), Error(TildeB),
+  #           ElectricField,
+  #           MagneticField,
   #           # ChargeDensity,
   #           # SpatialCurrentDensity,
   #           # TildeQ, Error(TildeQ),
@@ -172,26 +181,17 @@ EventsAndDenseTriggers:
   #         CoordinatesFloatingPointType: Float
   #         FloatingPointTypes: [Float]
   #         OverrideObservationValue: None
-  # - - Times:
-  #       Specified:
-  #         Values: [0.5]
-  #   - - ObserveNorms:
-  #         SubfileName: Error
-  #         TensorsToObserve:
-  #           - Name: Error(TildeE)
-  #             NormType: L2Norm
-  #             Components: Sum
 
 PhaseChangeAndTriggers:
 
 ResourceInfo:
   AvoidGlobalProc0: false
 
-Limiter:
-  Minmod:
-    Type: LambdaPiN
-    # The optimal value of the TVB constant is problem-dependent.
-    # This test uses 0 to favor robustness over accuracy.
-    TvbConstant: 10.0
-    # disable limiter for FFE runs
-    DisableForDebugging: true
+# Limiter:
+#   Minmod:
+#     Type: LambdaPiN
+#     # The optimal value of the TVB constant is problem-dependent.
+#     # This test uses 0 to favor robustness over accuracy.
+#     TvbConstant: 1.0
+#     # disable limiter for FFE runs
+#     DisableForDebugging: true

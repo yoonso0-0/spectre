@@ -1,0 +1,217 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+Executable: EvolveForceFree
+Testing:
+  Check: parse;execute
+
+---
+
+InitialData: &InitialData
+  RotatingDipole:
+    VectorPotentialAmplitude: 1.0
+    Varpi0 : 1.0
+    Delta: 0.1
+    AngularVelocity : 0.3
+    TiltAngle: 0.0
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.0005
+  TimeStepper:
+    Rk3PareschiSsp4
+    # Rk3Kennedy
+  ImexMode: Implicit
+  ImexImplicitSolveTolerance: 1.0e-10
+  # TimeStepper: Rk3HesthavenSsp
+
+Observers:
+  VolumeFileName: "ForceFreeRotatorLev5Volume"
+  ReductionFileName: "ForceFreeRotatorLev5Reductions"
+
+EvolutionSystem:
+  ForceFree:
+    ConstraintDamping:
+      KappaPsi: 1.0
+      KappaPhi: 1.0
+    ForceFreeCurrent:
+      ParallelConductivity: 1e3
+
+DomainCreator:
+  Brick:
+    # LowerBound: [0, -0.125, -2]
+    # UpperBound: [2, 0.125, 2]
+    # InitialRefinement: [3, 0, 4]
+    # LowerBound: [-2, -2, -2]
+    # UpperBound: [2, 2, 2]
+    LowerBound: [-2, -2, -2]
+    UpperBound: [2, 2, 2]
+    InitialRefinement: [2, 2, 2]
+    InitialGridPoints: [3, 3, 3]
+    TimeDependence: None
+    BoundaryConditionInX: &Analytic
+      DirichletAnalytic:
+        AnalyticPrescription: *InitialData
+    BoundaryConditionInY: *Analytic
+    BoundaryConditionInZ: *Analytic
+
+# DomainCreator:
+#   Sphere:
+#     InnerRadius: 2.0
+#     OuterRadius: 6.0
+#     Interior:
+#       FillWithSphericity: 0.0
+#     InitialRefinement:
+#       InnerCube: [1, 1, 1]
+#       Wedges : [1, 1, 1]
+#     InitialGridPoints: 4
+#     UseEquiangularMap: false
+#     EquatorialCompression: None
+#     RadialPartitioning: [3.0]
+#     RadialDistribution: Linear
+#     WhichWedges: All
+#     TimeDependentMaps: None
+#     OuterBoundaryCondition:
+#       DirichletAnalytic:
+#         AnalyticPrescription: *InitialData
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Rusanov:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+    Subcell:
+      RdmpDelta0: 1.0e-1
+      RdmpEpsilon: 1.0e-1
+      PerssonExponent: 2.0
+      InitialData:
+        RdmpDelta0: 1.0e-7
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 2.0
+      AlwaysUseSubcells: true
+      SubcellToDgReconstructionMethod: DimByDim
+      UseHalo: false
+      OnlyDgBlocksAndGroups: []
+      FiniteDifferenceDerivativeOrder: 2
+    TciOptions:
+      CutoffTildeQ: 1.0e-2
+      CutoffTildeJ: 1.0e-2
+  SubcellSolver:
+    Reconstructor:
+      # MonotonisedCentral
+      Wcns5z:
+        NonlinearWeightExponent: 2
+        Epsilon: 1e-15
+        FallbackReconstructor: None
+        MaxNumberOfExtrema: 2
+
+EventsAndTriggers:
+  # - Trigger:
+  #     TimeCompares:
+  #       Comparison: GreaterThanOrEqualTo
+  #       Value: 0.06
+  #   Events:
+  #     - Completion
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [10]
+    Events:
+      - Completion
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [0]
+    Events:
+      - ChangeSlabSize:
+          DelayChange: 0
+          StepChoosers:
+            - Cfl:
+                SafetyFactor: 0.3
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 10
+          Offset: 0
+    Events:
+      - ObserveTimeStep:
+          SubfileName: time_steps
+          PrintTimeToTerminal: true
+          ObservePerCore: false
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 1
+          Offset: 0
+    Events:
+      - ObserveFields:
+          SubfileName: VolumeData
+          VariablesToObserve: [
+              ElectricField, MagneticField,
+              ChargeDensity,
+              # TildeJ,
+              ElectricCurrentDensity,
+              ElectricFieldDotMagneticField,
+              NsInteriorSpatialVelocity,
+              # TciStatus,
+            ]
+          InterpolateToMesh: None
+          CoordinatesFloatingPointType: Float
+          FloatingPointTypes: [Float]
+
+EventsAndDenseTriggers:
+  # - Trigger:
+  #     Times:
+  #       Specified:
+  #         Values: [0.0, 0.01, 0.02, 0.03, 0.04]
+  #   Events:
+  #     - ObserveFields:
+  #         SubfileName: VolumeData
+  #         VariablesToObserve: [
+  #           ElectricField,
+  #           MagneticField,
+  #           # ChargeDensity,
+  #           # SpatialCurrentDensity,
+  #           # TildeQ, Error(TildeQ),
+  #           # SpatialCurrentDensity,
+  #           # MagneticDivergenceCleaningField,
+  #           # ElectricDivergenceCleaningField,
+  #           ElectricFieldDotMagneticField
+  #           ]
+  #         InterpolateToMesh: None
+  #         CoordinatesFloatingPointType: Float
+  #         FloatingPointTypes: [Float]
+  #         OverrideObservationValue: None
+
+EventsRunAtCleanup:
+  Events:
+    - ObserveFields:
+        SubfileName: FailureData
+        VariablesToObserve: [
+            ElectricField, MagneticField,
+            ChargeDensity,
+            # TildeJ,
+            ElectricCurrentDensity,
+            ElectricFieldDotMagneticField,
+            NsInteriorSpatialVelocity,
+            # TciStatus,
+          ]
+        InterpolateToMesh: None
+        CoordinatesFloatingPointType: Float
+        FloatingPointTypes: [Float]
+  ObservationValue: -1.0
+
+PhaseChangeAndTriggers:
+
+ResourceInfo:
+  AvoidGlobalProc0: false
+
+# Limiter:
+#   Minmod:
+#     Type: LambdaPiN
+#     # The optimal value of the TVB constant is problem-dependent.
+#     # This test uses 0 to favor robustness over accuracy.
+#     TvbConstant: 1.0
+#     # disable limiter for FFE runs
+#     DisableForDebugging: true
