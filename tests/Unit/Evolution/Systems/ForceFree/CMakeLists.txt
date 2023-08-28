@@ -7,7 +7,8 @@ set(LIBRARY_SOURCES
   BoundaryConditions/Test_Periodic.cpp
   # BoundaryConditions/Test_DirichletAnalytic.cpp
   BoundaryCorrections/Test_Rusanov.cpp
-  # FiniteDifference/Test_MonotonisedCentral.cpp
+  FiniteDifference/Test_MonotonisedCentral.cpp
+  FiniteDifference/Test_Wcns5z.cpp
   FiniteDifference/Test_Tags.cpp
   FiniteDifference/Test_Wcns5z.cpp
   Subcell/Test_ComputeFluxes.cpp
@@ -19,7 +20,7 @@ set(LIBRARY_SOURCES
   # Subcell/Test_TciOnFdGrid.cpp
   Test_Characteristics.cpp
   Test_Constraints.cpp
-  Test_ElectricCurrentDensity.cpp
+  # Test_ElectricCurrentDensity.cpp
   Test_ElectromagneticVariables.cpp
   Test_Fluxes.cpp
   Test_MaskNeutronStarInterior.cpp

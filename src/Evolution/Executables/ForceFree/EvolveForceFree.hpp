@@ -309,36 +309,31 @@ struct EvolutionMetavars {
                           tmpl::list<>>,
       //   ForceFree::Actions::ObserveEdotB<false>,
 
-      // Interior BC or heck inside the horizon, depending on the ID type
+      // After implicit solve, impose the MHD condition if applicable
       Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>
-      //   tmpl::conditional_t<
-      //       running_bh_test,
-      // Actions::MutateApply<ForceFree::HeckInsideHorizon<EvolutionMetavars>>,
-      //       tmpl::list<>>,
 
+      // Disable limiters
       //   Limiters::Actions::SendData<EvolutionMetavars>,
       //   Limiters::Actions::Limit<EvolutionMetavars>>
       >>;
 
-  // FIXME add Dense events for local time stepping
   using dg_subcell_step_actions = tmpl::flatten<tmpl::list<
       evolution::dg::subcell::Actions::SelectNumericalMethod,
 
       Actions::Label<evolution::dg::subcell::Actions::Labels::BeginDg>,
-      // try using mutator
       Actions::MutateApply<
           evolution::dg::BackgroundGrVars<system, EvolutionMetavars, true>>,
       evolution::dg::Actions::ComputeTimeDerivative<
           volume_dim, system, AllStepChoosers, local_time_stepping>,
-      tmpl::list<
-          evolution::dg::Actions::ApplyBoundaryCorrectionsToTimeDerivative<
-              system, volume_dim, false>,
-          Actions::RecordTimeStepperData<system>,
-          tmpl::conditional_t<imex_time_stepping,
-                              imex::Actions::RecordTimeStepperData,
-                              tmpl::list<>>,
-          evolution::Actions::RunEventsAndDenseTriggers<tmpl::list<>>,
-          Actions::UpdateU<system>>,
+      evolution::dg::Actions::ApplyBoundaryCorrectionsToTimeDerivative<
+          system, volume_dim, false>,
+
+      tmpl::list<Actions::RecordTimeStepperData<system>,
+                 tmpl::conditional_t<imex_time_stepping,
+                                     imex::Actions::RecordTimeStepperData,
+                                     tmpl::list<>>,
+                 evolution::Actions::RunEventsAndDenseTriggers<tmpl::list<>>,
+                 Actions::UpdateU<system>>,
 
       // implicit step
       tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,

@@ -14,7 +14,6 @@ spectre_target_sources(
   ElectromagneticVariables.cpp
   Fluxes.cpp
   ImposeMhdConditionInsideNs.cpp
-  InitialGuess.cpp
   NsInteriorSpatialVelocity.cpp
   Sources.cpp
   TimeDerivativeTerms.cpp
