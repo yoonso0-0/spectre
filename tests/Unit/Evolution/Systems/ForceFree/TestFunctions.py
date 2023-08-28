@@ -24,7 +24,7 @@ def electric_current_density_compute(tilde_j, lapse, sqrt_det_spatial_metric):
 # end functions for testing ElectromagneticVariables
 
 
-# Functions for testing ForceFreeConstraints
+# Functions for testing Constraints
 def tilde_e_or_tilde_b_squared(tilde_e_or_tilde_b, spatial_metric):
     one_form = np.einsum("a, ia", tilde_e_or_tilde_b, spatial_metric)
     return np.einsum("a, a", one_form, tilde_e_or_tilde_b)
@@ -52,4 +52,4 @@ def magnetic_dominance_violation_compute(
     )
 
 
-# end functions for testing ForceFreeConstraints
+# end functions for testing Constraints
