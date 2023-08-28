@@ -22,7 +22,8 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_b,
     const Scalar<DataVector>& subcell_tilde_q,
     const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_j,
-    const Mesh<3>& dg_mesh, const Mesh<3>& subcell_mesh,
+    const double parallel_conductivity, const Mesh<3>& dg_mesh,
+    const Mesh<3>& subcell_mesh,
     const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
     const TciOptions& tci_options,
     const evolution::dg::subcell::SubcellOptions& subcell_options,
@@ -115,27 +116,35 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
                                           persson_exponent)) {
     return {+2, rdmp_tci_data};
   }
-  const double max_abs_tilde_q = max(abs(get(dg_tilde_q)));
-  if ((max_abs_tilde_q > tci_options.cutoff_tilde_q) and
+
+  // TCI for Q : use normalized version
+  Scalar<DataVector> dg_normalized_tilde_q{num_dg_pts};
+  get(dg_normalized_tilde_q) =
+      get(dg_tilde_q) / (parallel_conductivity * get(dg_mag_tilde_b));
+
+  if ((max(abs(get(dg_normalized_tilde_q))) > tci_options.cutoff_tilde_q) and
       evolution::dg::subcell::persson_tci(dg_tilde_q, dg_mesh,
                                           persson_exponent)) {
     return {+3, rdmp_tci_data};
   }
 
-  // TCI for J^i
-  Scalar<DataVector> subcell_mag_tilde_j{};
-  assign_data(make_not_null(&subcell_mag_tilde_j), num_subcell_pts);
+  // TCI for J^i : use normalized version
+  Scalar<DataVector> subcell_mag_tilde_j{num_subcell_pts};
   magnitude(make_not_null(&subcell_mag_tilde_j), subcell_tilde_j);
 
-  Scalar<DataVector> dg_mag_tilde_j{};
-  assign_data(make_not_null(&dg_mag_tilde_j), num_dg_pts);
+  Scalar<DataVector> dg_mag_tilde_j{num_dg_pts};
+
   evolution::dg::subcell::fd::reconstruct(
       make_not_null(&get(dg_mag_tilde_j)), get(subcell_mag_tilde_j), dg_mesh,
       subcell_mesh.extents(),
       evolution::dg::subcell::fd::ReconstructionMethod::DimByDim);
 
-  const double max_mag_tilde_j = max(abs(get(dg_mag_tilde_j)));
-  if ((max_mag_tilde_j > tci_options.cutoff_tilde_j) and
+  Scalar<DataVector> dg_normalized_mag_tilde_j{num_dg_pts};
+  get(dg_normalized_mag_tilde_j) =
+      get(dg_mag_tilde_j) / (parallel_conductivity * get(dg_mag_tilde_b));
+
+  if ((max(abs(get(dg_normalized_mag_tilde_j))) >
+       tci_options.cutoff_tilde_j) and
       evolution::dg::subcell::persson_tci(dg_mag_tilde_j, dg_mesh,
                                           persson_exponent)) {
     return {+8, std::move(rdmp_tci_data)};
