@@ -139,6 +139,22 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnDgGrid::apply(
     return {-8, std::move(rdmp_tci_data)};
   }
 
+  // TCI for J.E / eta B^2 : use normalized version
+  Scalar<DataVector> dg_joule_heating{num_dg_pts};
+  dot_product(make_not_null(&dg_joule_heating), tilde_j, tilde_e);
+
+  Scalar<DataVector> dg_normalized_joule_heating{num_dg_pts};
+  get(dg_normalized_joule_heating) =
+      get(dg_joule_heating) /
+      (parallel_conductivity * square(get(dg_mag_tilde_b)));
+
+  if ((max(abs(get(dg_normalized_joule_heating))) >
+       tci_options.cutoff_heating) and
+      evolution::dg::subcell::persson_tci(dg_joule_heating, dg_mesh,
+                                          persson_exponent)) {
+    return {-9, std::move(rdmp_tci_data)};
+  }
+
   if (const int rdmp_tci_status = evolution::dg::subcell::rdmp_tci(
           rdmp_tci_data.max_variables_values,
           rdmp_tci_data.min_variables_values,

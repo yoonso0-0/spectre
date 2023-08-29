@@ -44,7 +44,17 @@ struct TciOptions {
         "The cutoff of the magnitude of TildeJ to apply the Persson TCI ="};
   };
 
-  using options = tmpl::list<CutoffTildeQ, CutoffTildeJ>;
+  /*!
+   * \brief The cutoff of the Joule Heating
+   */
+  struct CutoffHeating {
+    using type = double;
+    static type lower_bound() { return 0.0; }
+    static constexpr Options::String help = {
+        "The cutoff of J.E to apply the Persson TCI"};
+  };
+
+  using options = tmpl::list<CutoffTildeQ, CutoffTildeJ, CutoffHeating>;
 
   static constexpr Options::String help = {
       "Options for the troubled-cell indicator"};
@@ -54,6 +64,7 @@ struct TciOptions {
 
   double cutoff_tilde_q{std::numeric_limits<double>::signaling_NaN()};
   double cutoff_tilde_j{std::numeric_limits<double>::signaling_NaN()};
+  double cutoff_heating{std::numeric_limits<double>::signaling_NaN()};
 };
 
 namespace OptionTags {

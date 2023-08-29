@@ -150,6 +150,28 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
     return {+8, std::move(rdmp_tci_data)};
   }
 
+  // TCI for J.E : use normalized version
+  Scalar<DataVector> subcell_joule_heating{num_subcell_pts};
+  dot_product(make_not_null(&subcell_joule_heating), subcell_tilde_j,
+              subcell_tilde_e);
+  Scalar<DataVector> dg_joule_heating{num_dg_pts};
+  evolution::dg::subcell::fd::reconstruct(
+      make_not_null(&get(dg_joule_heating)), get(subcell_joule_heating),
+      dg_mesh, subcell_mesh.extents(),
+      evolution::dg::subcell::fd::ReconstructionMethod::DimByDim);
+
+  Scalar<DataVector> dg_normalized_joule_heating{num_dg_pts};
+  get(dg_normalized_joule_heating) =
+      get(dg_joule_heating) /
+      (parallel_conductivity * square(get(dg_mag_tilde_b)));
+
+  if ((max(abs(get(dg_normalized_joule_heating))) >
+       tci_options.cutoff_heating) and
+      evolution::dg::subcell::persson_tci(dg_joule_heating, dg_mesh,
+                                          persson_exponent)) {
+    return {+9, std::move(rdmp_tci_data)};
+  }
+
   using std::max;
   using std::min;
   evolution::dg::subcell::RdmpTciData rdmp_tci_data_for_check{};

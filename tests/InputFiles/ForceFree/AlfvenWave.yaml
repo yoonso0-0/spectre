@@ -30,7 +30,7 @@ EvolutionSystem:
       KappaPsi: 1.0
       KappaPhi: 1.0
     ForceFreeCurrent:
-      ParallelConductivity: 1e7
+      ParallelConductivity: 1e6
 
 DomainCreator:
   Brick:
@@ -45,7 +45,7 @@ DomainCreator:
     LowerBound: [-1.5, -0.1, -0.1]
     UpperBound: [1.5, 0.1, 0.1]
     InitialRefinement: [5, 0, 0]
-    InitialGridPoints: [3, 3, 3]
+    InitialGridPoints: [5, 5, 5]
     TimeDependence: None
     BoundaryConditionInX:
       DirichletAnalytic:
@@ -69,21 +69,22 @@ SpatialDiscretization:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
     Subcell:
-      RdmpDelta0: 1.0e-7
-      RdmpEpsilon: 1.0e-3
-      PerssonExponent: 4.0
+      RdmpDelta0: 1.0e-2
+      RdmpEpsilon: 1.0e-2
+      PerssonExponent: 3.0
       InitialData:
         RdmpDelta0: 1.0e-7
         RdmpEpsilon: 1.0e-3
-        PerssonExponent: 4.0
+        PerssonExponent: 3.0
       AlwaysUseSubcells: false
       SubcellToDgReconstructionMethod: DimByDim
       UseHalo: false
       OnlyDgBlocksAndGroups: None
       FiniteDifferenceDerivativeOrder: 2
     TciOptions:
-      CutoffTildeQ: 1.0e-1
-      CutoffTildeJ: 1.0e-1
+      CutoffTildeQ: 1.0e-3
+      CutoffTildeJ: 1.0e-5
+      CutoffHeating: 1.0e-5
   SubcellSolver:
     Reconstructor:
       # MonotonisedCentral
@@ -97,7 +98,7 @@ EventsAndTriggers:
   - Trigger:
       Slabs:
         Specified:
-          Values: [20]
+          Values: [30]
     Events:
       - Completion
   # - Trigger:
@@ -129,7 +130,7 @@ EventsAndTriggers:
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 2
+          Interval: 5
           Offset: 0
     Events:
       - ObserveFields:
@@ -137,7 +138,7 @@ EventsAndTriggers:
           VariablesToObserve: [
               ElectricField, MagneticField,
               ChargeDensity,
-              TildeJ,
+              ElectricCurrentDensity,
               # Error(TildeE), Error(TildeB),
               ElectricFieldDotMagneticField,
               MagneticDominanceViolation,
