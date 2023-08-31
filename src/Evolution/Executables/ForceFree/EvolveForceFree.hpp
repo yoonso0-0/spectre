@@ -115,6 +115,7 @@
 #include "ParallelAlgorithms/EventsAndTriggers/EventsAndTriggers.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/LogicalTriggers.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/Trigger.hpp"
+#include "ParallelAlgorithms/Interpolation/Protocols/InterpolationTargetTag.hpp"
 #include "PointwiseFunctions/AnalyticData/ForceFree/AnalyticData.hpp"
 #include "PointwiseFunctions/AnalyticData/ForceFree/Factory.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/ForceFree/Factory.hpp"
@@ -217,6 +218,12 @@ struct EvolutionMetavars {
       ::Events::Tags::ObserverDetInvJacobianCompute<Frame::ElementLogical,
                                                     Frame::Inertial>,
       analytic_compute, error_compute>;
+
+  struct MagneticFluxThroughHorizon
+      : tt::ConformsTo<intrp::protocols::InterpolationTargetTag> {};
+
+  struct PoyntingFlux
+      : tt::ConformsTo<intrp::protocols::InterpolationTargetTag> {};
 
   struct factory_creation
       : tt::ConformsTo<Options::protocols::FactoryCreation> {

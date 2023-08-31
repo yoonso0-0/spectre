@@ -14,10 +14,12 @@ set(LIBS_TO_LINK
   IO
   Imex
   Informer
+  Interpolation
   Limiters
   LinearOperators
   Options
   Parallel
+  ParallelInterpolation
   PhaseControl
   Time
   Utilities
