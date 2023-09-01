@@ -24,6 +24,7 @@ Evolution:
 Observers:
   VolumeFileName: "ForceFreeWaldSolutionLev5Volume"
   ReductionFileName: "ForceFreeWaldSolutionLev5Reductions"
+  SurfaceFileName: "ForceFreeSurfaceData"
 
 EvolutionSystem:
   ForceFree:
@@ -48,19 +49,19 @@ EvolutionSystem:
 
 DomainCreator:
   Sphere:
-    InnerRadius: 2.0
-    OuterRadius: 8
+    InnerRadius: 1.5
+    OuterRadius: 4.0
     Interior:
       ExciseWithBoundaryCondition:
         DirichletAnalytic:
           AnalyticPrescription: *InitialData
-    InitialRefinement:
-      Shell0: [2, 2, 2]
-      Shell1: [1, 1, 1]
+    InitialRefinement: 1
+      # Shell0: [2, 2, 2]
+      # Shell1: [1, 1, 1]
     InitialGridPoints: 3
     UseEquiangularMap: false
     EquatorialCompression: None
-    RadialPartitioning: [4.0]
+    RadialPartitioning: []
     RadialDistribution: Linear
     WhichWedges: All
     TimeDependentMaps: None
@@ -138,6 +139,7 @@ EventsAndTriggers:
           Interval: 1
           Offset: 0
     Events:
+      - MagneticFluxThroughHorizon
       - ObserveFields:
           SubfileName: VolumeData
           VariablesToObserve: [
@@ -145,7 +147,7 @@ EventsAndTriggers:
               TildeE, TildeB,
               Error(TildeE), Error(TildeB),
               ChargeDensity,
-              TildeJ,
+              # TildeJ,
               TildePhi, TildePsi,
               # SpatialCurrentDensity,
               ElectricFieldDotMagneticField,
@@ -157,6 +159,12 @@ EventsAndTriggers:
           InterpolateToMesh: None
           CoordinatesFloatingPointType: Float
           FloatingPointTypes: [Float]
+  # - Trigger:
+  #     Slabs:
+  #       EvenlySpaced:
+  #         Interval: 1
+  #         Offset: 0
+  #   Events:
 
 EventsAndDenseTriggers:
   # - Trigger:
@@ -182,16 +190,18 @@ EventsAndDenseTriggers:
   #         FloatingPointTypes: [Float]
   #         OverrideObservationValue: None
 
+Interpolator:
+  DumpVolumeDataOnFailure: false
+
+InterpolationTargets:
+  MagneticFluxThroughHorizon:
+    LMax: 10
+    Radius: [2.0]
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
+
 PhaseChangeAndTriggers:
 
 ResourceInfo:
   AvoidGlobalProc0: false
-
-# Limiter:
-#   Minmod:
-#     Type: LambdaPiN
-#     # The optimal value of the TVB constant is problem-dependent.
-#     # This test uses 0 to favor robustness over accuracy.
-#     TvbConstant: 1.0
-#     # disable limiter for FFE runs
-#     DisableForDebugging: true
+  Singletons: Auto

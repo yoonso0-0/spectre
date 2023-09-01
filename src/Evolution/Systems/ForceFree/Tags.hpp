@@ -166,6 +166,13 @@ struct JouleHeating : db::SimpleTag {
 };
 
 /*!
+ * \brief $B^i n_i$.
+ */
+struct MagneticFluxSurfaceDensity : db::SimpleTag {
+  using type = Scalar<DataVector>;
+};
+
+/*!
  * \brief The electromagnetic energy density $\rho = (E^2+B^2)/2$.
  *
  */

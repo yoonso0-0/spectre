@@ -9,6 +9,8 @@
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Utilities/TMPL.hpp"
 
+#include <iostream>
+
 /// \cond
 class DataVector;
 namespace gsl {
@@ -129,7 +131,7 @@ struct JouleHeatingCompute : JouleHeating, db::ComputeTag {
 };
 }  // namespace Tags
 
-///
+/// ----------------------- Things related to observing Poynting flux
 
 /*!
  * \brief Computes the electromagnetic energy density.
@@ -142,11 +144,10 @@ void electromagnetic_energy_density(
     const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric);
 
 /*!
- * \brief Computes the Poynting vector
+ * \brief Computes the Poynting vector with a lower index $S_i$.
  */
-void electromagnetic_spatial_poynting_vector(
-    const gsl::not_null<tnsr::I<DataVector, 3>*>
-        electromagnetic_spatial_poynting_vector,
+void poynting_covector(
+    const gsl::not_null<tnsr::i<DataVector, 3>*> poynting_covector,
     const tnsr::I<DataVector, 3>& tilde_e,
     const tnsr::I<DataVector, 3>& tilde_b, const Scalar<DataVector>& lapse,
     const tnsr::I<DataVector, 3, Frame::Inertial>& shift,
@@ -154,12 +155,12 @@ void electromagnetic_spatial_poynting_vector(
     const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric);
 
 /*!
- * \brief Computes the Poynting flux
+ * \brief Computes the Poynting flux dot normal vector $S_i n^i$.
  */
-void poynting_flux(
-    const gsl::not_null<Scalar<DataVector>*> poynting_flux,
-    const tnsr::I<DataVector, 3>& electromagnetic_spatial_poynting_vector,
-    const tnsr::i<DataVector, 3>& normal_covector);
+void poynting_vector_dot_normal(
+    const gsl::not_null<Scalar<DataVector>*> poynting_vector_dot_normal,
+    const tnsr::i<DataVector, 3>& poynting_covector,
+    const tnsr::I<DataVector, 3>& normal_vector);
 
 namespace Tags {
 /*!
@@ -191,7 +192,23 @@ struct ElectromagneticSpatialPoyntingVectorCompute
   using return_type = tnsr::I<DataVector, 3>;
   using base = ElectromagneticSpatialPoyntingVector;
 
-  static constexpr auto function = &electromagnetic_spatial_poynting_vector;
+  static constexpr auto function = &poynting_covector;
+};
+
+struct MagneticFluxSurfaceDensityCompute : MagneticFluxSurfaceDensity,
+                                           db::ComputeTag {
+  using argument_tags = tmpl::list<TildeB>;
+  using return_type = Scalar<DataVector>;
+  using base = MagneticFluxSurfaceDensity;
+
+  static void function(
+      const gsl::not_null<Scalar<DataVector>*> magnetic_flux_surface_density,
+      const tnsr::I<DataVector, 3>& tilde_b) {
+    std::cout << "Flux density computed " << std::endl;
+    set_number_of_grid_points(magnetic_flux_surface_density,
+                              tilde_b.get(0).size());
+    get(*magnetic_flux_surface_density) = tilde_b.get(0);
+  }
 };
 
 }  // namespace Tags

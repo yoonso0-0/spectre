@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -115,7 +116,15 @@
 #include "ParallelAlgorithms/EventsAndTriggers/EventsAndTriggers.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/LogicalTriggers.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/Trigger.hpp"
+#include "ParallelAlgorithms/Interpolation/Actions/ElementInitInterpPoints.hpp"
+#include "ParallelAlgorithms/Interpolation/Actions/InitializeInterpolationTarget.hpp"
+#include "ParallelAlgorithms/Interpolation/Callbacks/ObserveSurfaceData.hpp"
+#include "ParallelAlgorithms/Interpolation/Events/InterpolateWithoutInterpComponent.hpp"
+#include "ParallelAlgorithms/Interpolation/InterpolationTarget.hpp"
+#include "ParallelAlgorithms/Interpolation/Interpolator.hpp"
+#include "ParallelAlgorithms/Interpolation/PointInfoTag.hpp"
 #include "ParallelAlgorithms/Interpolation/Protocols/InterpolationTargetTag.hpp"
+#include "ParallelAlgorithms/Interpolation/Targets/Sphere.hpp"
 #include "PointwiseFunctions/AnalyticData/ForceFree/AnalyticData.hpp"
 #include "PointwiseFunctions/AnalyticData/ForceFree/Factory.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/ForceFree/Factory.hpp"
@@ -165,7 +174,7 @@ struct EvolutionMetavars {
 
   // The use_dg_subcell flag controls whether to use "standard" limiting (false)
   // or a DG-FD hybrid scheme (true).
-  static constexpr bool use_dg_subcell = true;
+  static constexpr bool use_dg_subcell = false;
 
   using initial_data_list = tmpl::append<ForceFree::Solutions::all_solutions,
                                          ForceFree::AnalyticData::all_data>;
@@ -220,10 +229,39 @@ struct EvolutionMetavars {
       analytic_compute, error_compute>;
 
   struct MagneticFluxThroughHorizon
-      : tt::ConformsTo<intrp::protocols::InterpolationTargetTag> {};
+      : tt::ConformsTo<intrp::protocols::InterpolationTargetTag> {
+    using temporal_id = ::Tags::Time;
+
+    using vars_to_interpolate_to_target =
+        tmpl::list<ForceFree::Tags::TildeB,
+                   gr::Tags::SpatialMetric<DataVector, 3, Frame::Grid>>;
+
+    using compute_items_on_source = tmpl::list<>;
+
+    using compute_items_on_target =
+        tmpl::list<ForceFree::Tags::MagneticFluxSurfaceDensityCompute>;
+
+    using compute_target_points =
+        intrp::TargetPoints::Sphere<MagneticFluxThroughHorizon,
+                                    ::Frame::Inertial>;
+
+    using post_interpolation_callback = intrp::callbacks::ObserveSurfaceData<
+        tmpl::list<ForceFree::Tags::MagneticFluxSurfaceDensity>,
+        MagneticFluxThroughHorizon, ::Frame::Inertial>;
+
+    template <typename Metavariables>
+    using interpolating_component =
+        typename Metavariables::dg_element_array_component;
+
+    static std::string name() { return "MagneticFluxThroughHorizon"; }
+  };
 
   struct PoyntingFlux
       : tt::ConformsTo<intrp::protocols::InterpolationTargetTag> {};
+
+  using interpolation_target_tags = tmpl::list<MagneticFluxThroughHorizon>;
+
+  using interpolator_source_vars = tmpl::list<ForceFree::Tags::TildeB>;
 
   struct factory_creation
       : tt::ConformsTo<Options::protocols::FactoryCreation> {
@@ -234,6 +272,11 @@ struct EvolutionMetavars {
         tmpl::pair<DomainCreator<volume_dim>, domain_creators<volume_dim>>,
         tmpl::pair<Event,
                    tmpl::flatten<tmpl::list<
+                       // For interpolations
+                       intrp::Events::InterpolateWithoutInterpComponent<
+                           3, MagneticFluxThroughHorizon,
+                           tmpl::list<ForceFree::Tags::TildeB>>,
+
                        Events::Completion,
                        dg::Events::field_observations<
                            volume_dim, observe_fields, non_tensor_compute_tags>,
@@ -463,6 +506,10 @@ struct EvolutionMetavars {
                                                   local_time_stepping>>,
       ::evolution::dg::Initialization::Mortars<volume_dim, system>,
       Initialization::Actions::Minmod<3>,
+
+      intrp::Actions::ElementInitInterpPoints<
+          intrp::Tags::InterpPointInfo<EvolutionMetavars>>,
+
       evolution::Actions::InitializeRunEventsAndDenseTriggers,
       Parallel::Actions::TerminatePhase>;
 
@@ -493,10 +540,14 @@ struct EvolutionMetavars {
         tmpl::map<tmpl::pair<dg_element_array_component, dg_registration_list>>;
   };
 
-  using component_list =
-      tmpl::list<observers::Observer<EvolutionMetavars>,
-                 observers::ObserverWriter<EvolutionMetavars>,
-                 dg_element_array_component>;
+  using component_list = tmpl::flatten<tmpl::list<
+      observers::Observer<EvolutionMetavars>,
+      observers::ObserverWriter<EvolutionMetavars>,
+      intrp::Interpolator<EvolutionMetavars>,
+      tmpl::transform<interpolation_target_tags,
+                      tmpl::bind<intrp::InterpolationTarget,
+                                 tmpl::pin<EvolutionMetavars>, tmpl::_1>>,
+      dg_element_array_component>>;
 
   static constexpr Options::String help{
       "Evolve the GRFFE system with divergence cleaning.\n"};
