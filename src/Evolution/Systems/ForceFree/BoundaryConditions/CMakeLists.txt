@@ -8,6 +8,7 @@ spectre_target_sources(
   BoundaryCondition.cpp
   DemandOutgoingCharSpeeds.cpp
   DirichletAnalytic.cpp
+  Nonreflecting.cpp
   )
 
 spectre_target_headers(
@@ -18,4 +19,5 @@ spectre_target_headers(
   DemandOutgoingCharSpeeds.hpp
   DirichletAnalytic.hpp
   Factory.hpp
+  Nonreflecting.hpp
   )
