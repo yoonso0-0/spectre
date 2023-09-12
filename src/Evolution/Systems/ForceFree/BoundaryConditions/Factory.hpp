@@ -7,11 +7,12 @@
 #include "Evolution/Systems/ForceFree/BoundaryConditions/BoundaryCondition.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryConditions/DemandOutgoingCharSpeeds.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryConditions/DirichletAnalytic.hpp"
+#include "Evolution/Systems/ForceFree/BoundaryConditions/Nonreflecting.hpp"
 #include "Utilities/TMPL.hpp"
 
 namespace ForceFree::BoundaryConditions {
 /// Typelist of standard BoundaryConditions
 using standard_boundary_conditions =
     tmpl::list<domain::BoundaryConditions::Periodic<BoundaryCondition>,
-               DemandOutgoingCharSpeeds, DirichletAnalytic>;
+               DemandOutgoingCharSpeeds, DirichletAnalytic, Nonreflecting>;
 }  // namespace ForceFree::BoundaryConditions
