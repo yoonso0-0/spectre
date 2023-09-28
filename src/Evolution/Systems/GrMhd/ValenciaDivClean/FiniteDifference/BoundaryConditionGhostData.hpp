@@ -135,12 +135,12 @@ void BoundaryConditionGhostData::apply(
     // non-owning Variables on it.
     using FluxVars =
         Variables<db::wrap_tags_in<::Tags::Flux, flux_variables,
-                                    tmpl::size_t<3>, Frame::Inertial>>;
+                                   tmpl::size_t<3>, Frame::Inertial>>;
     const size_t prims_size =
         num_prims_tensor_components * ghost_zone_size * num_face_pts;
     const size_t fluxes_size =
         (compute_cell_centered_flux ? FluxVars::number_of_independent_components
-         : 0) *
+                                    : 0) *
         ghost_zone_size * num_face_pts;
 
     auto& all_ghost_data = db::get_mutable_reference<
@@ -232,6 +232,7 @@ void BoundaryConditionGhostData::apply(
 
             std::optional<tnsr::I<DataVector, 3>> face_mesh_velocity{};
 
+            // FIXME : this will not work..
             const auto& normal_covector_and_magnitude =
                 db::get<evolution::dg::Tags::NormalCovectorAndMagnitude<3>>(
                     *box);
