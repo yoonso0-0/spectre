@@ -145,7 +145,8 @@ void reconstruct_work(
                 .neighbor_ghost_data_for_reconstruction();
 
         ghost_cell_vars[direction] = gsl::make_span(
-            &neighbor_data_dv[0], number_of_variables * neighbor_num_pts);
+            &neighbor_data_dv[vars_in_neighbor_count * neighbor_num_pts],
+            number_of_variables * neighbor_num_pts);
       }
     }
 

@@ -27,6 +27,7 @@
 #include "Evolution/DiscontinuousGalerkin/MortarTags.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryCorrections/BoundaryCorrection.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryCorrections/Factory.hpp"
+#include "Evolution/Systems/ForceFree/FiniteDifference/BoundaryConditionGhostData.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Factory.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Reconstructor.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Tags.hpp"
@@ -56,12 +57,6 @@ namespace ForceFree::subcell {
 struct TimeDerivative {
   template <typename DbTagsList>
   static void apply(const gsl::not_null<db::DataBox<DbTagsList>*> box) {
-    // subcell is currently not supported for external boundary elements
-    const Element<3>& element = db::get<domain::Tags::Element<3>>(*box);
-    ASSERT(element.external_boundaries().size() == 0,
-           "Can't have external boundaries right now with subcell. ElementID "
-               << element.id());
-
     using evolved_vars_tags = typename System::variables_tag::tags_list;
     using fluxes_tags = typename Fluxes::return_tags;
 
@@ -89,6 +84,25 @@ struct TimeDerivative {
 
     // boundary correction terms of evolved variables on subcell interfaces
     std::array<Variables<evolved_vars_tags>, 3> fd_boundary_corrections{};
+
+    // Check if element is at external boundary or FD is enabled at there.
+    const Element<3>& element = db::get<domain::Tags::Element<3>>(*box);
+    const bool element_is_interior = element.external_boundaries().empty();
+    constexpr bool subcell_enabled_at_external_boundary =
+        std::decay_t<decltype(db::get<Parallel::Tags::Metavariables>(
+            *box))>::SubcellOptions::subcell_enabled_at_external_boundary;
+    ASSERT(element_is_interior or subcell_enabled_at_external_boundary,
+           "Subcell time derivative is called at a boundary element while "
+           "using subcell is disabled at external boundaries."
+           "ElementID "
+               << element.id());
+    // If the element has external boundaries and subcell is enabled for
+    // boundary elements, compute FD ghost data with a given boundary condition.
+    if constexpr (subcell_enabled_at_external_boundary) {
+      if (not element.external_boundaries().empty()) {
+        fd::BoundaryConditionGhostData::apply(box, element, recons);
+      }
+    }
 
     call_with_dynamic_type<void, derived_boundary_corrections>(
         &boundary_correction, [&](const auto* derived_correction) {
