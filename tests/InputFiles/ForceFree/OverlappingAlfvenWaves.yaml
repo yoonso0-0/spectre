@@ -35,11 +35,9 @@ EvolutionSystem:
 DomainCreator:
   Brick:
     LowerBound: [0, 0, 0]
-    UpperBound: [6.283185307179586,
-                 6.283185307179586,
-                 6.283185307179586]
-    InitialRefinement: [3, 3, 3]
-    InitialGridPoints: [3, 3, 3]
+    UpperBound: [1.0, 1.0, 1.0]
+    InitialRefinement: [2, 2, 2]
+    InitialGridPoints: [5, 5, 5]
     TimeDependence: None
     BoundaryConditionInX: Periodic
     BoundaryConditionInY: Periodic
@@ -60,25 +58,25 @@ SpatialDiscretization:
   DiscontinuousGalerkin:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
-    Subcell:
-      RdmpDelta0: 1.0e-2
-      RdmpEpsilon: 1.0e-2
-      PerssonExponent: 2.0
-      InitialData:
-        RdmpDelta0: 1.0e-7
-        RdmpEpsilon: 1.0e-3
-        PerssonExponent: 4.0
-      AlwaysUseSubcells: false
-      SubcellToDgReconstructionMethod: DimByDim
-      UseHalo: false
-      OnlyDgBlocksAndGroups: None
-      FiniteDifferenceDerivativeOrder: 2
-    TciOptions:
-      CutoffTildeQ: 1.0e-5
-      CutoffTildeJ: 1.0e-5
-  SubcellSolver:
-    Reconstructor:
-      MonotonisedCentral
+  #   Subcell:
+  #     RdmpDelta0: 1.0e-2
+  #     RdmpEpsilon: 1.0e-2
+  #     PerssonExponent: 2.0
+  #     InitialData:
+  #       RdmpDelta0: 1.0e-7
+  #       RdmpEpsilon: 1.0e-3
+  #       PerssonExponent: 4.0
+  #     AlwaysUseSubcells: false
+  #     SubcellToDgReconstructionMethod: DimByDim
+  #     UseHalo: false
+  #     OnlyDgBlocksAndGroups: None
+  #     FiniteDifferenceDerivativeOrder: 2
+  #   TciOptions:
+  #     CutoffTildeQ: 1.0e-5
+  #     CutoffTildeJ: 1.0e-5
+  # SubcellSolver:
+  #   Reconstructor:
+  #     MonotonisedCentral
       # Wcns5z:
       #   NonlinearWeightExponent: 2
       #   Epsilon: 1e-15
@@ -135,7 +133,7 @@ EventsAndTriggers:
               ElectricFieldDotMagneticField,
               # MagneticDominanceViolation,
               # JouleHeating,
-              TciStatus,
+              # TciStatus,
             ]
           InterpolateToMesh: None
           CoordinatesFloatingPointType: Float

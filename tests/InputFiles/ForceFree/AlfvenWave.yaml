@@ -7,28 +7,22 @@ Testing:
 
 ---
 
-Parallelization:
-  ElementDistribution: NumGridPoints
-
-ResourceInfo:
-  AvoidGlobalProc0: false
-
 InitialData: &InitialData
-  FastWave:
+  AlfvenWave:
+    WaveSpeed: 0.0
 
 Evolution:
   InitialTime: 0.0
-  InitialTimeStep: 0.005
-  MinimumTimeStep: 1e-7
+  InitialTimeStep: 0.001
   TimeStepper:
+    # Rk3Kennedy
     Rk3PareschiSsp4
-    # Heun2
   ImexMode: Implicit
   ImexImplicitSolveTolerance: 1.0e-10
 
 Observers:
-  VolumeFileName: "ForceFreeFastWaveVolume"
-  ReductionFileName: "ForceFreeFastWaveReductions"
+  VolumeFileName: "ForceFreeAlfvenWaveLev5Volume"
+  ReductionFileName: "ForceFreeAlfvenWaveLev5Reductions"
   SurfaceFileName: "Surface"
 
 EvolutionSystem:
@@ -37,21 +31,37 @@ EvolutionSystem:
       KappaPsi: 1.0
       KappaPhi: 1.0
     ForceFreeCurrent:
-      ParallelConductivity: 1e4
+      ParallelConductivity: 1e3
 
 DomainCreator:
   Brick:
+    # LowerBound: [-0.0625, -0.1, -0.1]
+    # UpperBound: [0.0, 0.1, 0.1]
+    # InitialRefinement: [0, 0, 0]
+    # InitialGridPoints: [2, 2, 2]
+    # LowerBound: [-0.1, -0.1, -0.1]
+    # UpperBound: [0.1, 0.1, 0.1]
+    # InitialRefinement: [0, 0, 0]
+    # InitialGridPoints: [2, 2, 2]
     LowerBound: [-0.5, -0.1, -0.1]
     UpperBound: [0.5, 0.1, 0.1]
-    Distribution: [Linear, Linear, Linear]
-    InitialRefinement: [4, 0, 0]
+    InitialRefinement: [5, 0, 0]
     InitialGridPoints: [5, 5, 5]
     TimeDependence: None
-    BoundaryConditions:
-      - DirichletAnalytic:
-          AnalyticPrescription: *InitialData
-      - Periodic
-      - Periodic
+    BoundaryConditionInX: Nonreflecting
+      # DirichletAnalytic:
+      #   AnalyticPrescription: *InitialData
+    BoundaryConditionInY: Periodic
+    BoundaryConditionInZ: Periodic
+
+# Limiter:
+#   Minmod:
+#     Type: LambdaPiN
+#     # The optimal value of the TVB constant is problem-dependent.
+#     # This test uses 0 to favor robustness over accuracy.
+#     TvbConstant: 10.0
+#     # disable limiter for FFE runs
+#     DisableForDebugging: true
 
 SpatialDiscretization:
   BoundaryCorrection:
@@ -81,31 +91,31 @@ SpatialDiscretization:
       MonitorNormalizedHeatingForCutoff: false
   SubcellSolver:
     Reconstructor:
-      # MonotonisedCentral
+      MonotonisedCentral
       # Wcns5z:
       #   NonlinearWeightExponent: 2
       #   Epsilon: 1e-15
       #   FallbackReconstructor: None
       #   MaxNumberOfExtrema: 0
-      AdaptiveOrder:
-        Alpha9: None
-        Alpha7: None
-        Alpha5: 4.0
-        LowOrderReconstructor: MonotonisedCentral
+      # AdaptiveOrder:
+        # Alpha9: None
+        # Alpha7: None
+        # Alpha5: 4.0
+        # LowOrderReconstructor: MonotonisedCentral
 
-EventsAndTriggersAtSlabs:
-  # - Trigger:
-  #     TimeCompares:
-  #       Comparison: GreaterThanOrEqualTo
-  #       Value: 0.10 # upto t = 0.5
-  #   Events:
-  #     - Completion
+EventsAndTriggers:
   - Trigger:
       Slabs:
         Specified:
-          Values: [80]
+          Values: [200]
     Events:
       - Completion
+  # - Trigger:
+  #     TimeCompares:
+  #       Comparison: GreaterThanOrEqualTo
+  #       Value: 0.1
+  #   Events:
+  #     - Completion
   - Trigger:
       Slabs:
         Specified:
@@ -115,7 +125,7 @@ EventsAndTriggersAtSlabs:
           DelayChange: 0
           StepChoosers:
             - Cfl:
-                SafetyFactor: 0.4
+                SafetyFactor: 0.3
   - Trigger:
       Slabs:
         EvenlySpaced:
@@ -126,28 +136,10 @@ EventsAndTriggersAtSlabs:
           SubfileName: time_steps
           PrintTimeToTerminal: true
           ObservePerCore: false
-  # - Trigger:
-  #     Slabs:
-  #       EvenlySpaced:
-  #         Interval: 10
-  #         Offset: 0
-  #   Events:
-  #     - ObserveNorms:
-  #         SubfileName: ErrorNorm
-  #         TensorsToObserve:
-  #           - Name: TildePhi
-  #             NormType: L2Norm
-  #             Components: Sum
-  #           - Name: TildePsi
-  #             NormType: L2Norm
-  #             Components: Sum
-  #           - Name: ElectricFieldDotMagneticField
-  #             NormType: L2Norm
-  #             Components: Sum
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 2
+          Interval: 5
           Offset: 0
     Events:
       - ObserveFields:
@@ -156,9 +148,11 @@ EventsAndTriggersAtSlabs:
               ElectricField, MagneticField,
               ChargeDensity,
               ElectricCurrentDensity,
-              Error(TildeE), Error(TildeB),
+              # Error(TildeE), Error(TildeB),
               ElectricFieldDotMagneticField,
-              TildePhi, TildePsi,
+              # MagneticDominanceViolation,
+              # JouleHeating,
+              TildePsi, TildePhi,
               TciStatus,
             ]
           InterpolateToMesh: None
@@ -166,34 +160,8 @@ EventsAndTriggersAtSlabs:
           FloatingPointTypes: [Float]
 
 EventsAndDenseTriggers:
-  # - Trigger:
-  #     Times:
-  #       Specified:
-  #         Values: [0.0, 0.01, 0.02, 0.03, 0.04]
-  #   Events:
-  #     - ObserveFields:
-  #         SubfileName: VolumeData
-  #         VariablesToObserve: [
-  #           ElectricField,
-  #           MagneticField,
-  #           Error(TildeE),
-  #           Error(TildeB),
-  #           ElectricFieldDotMagneticField
-  #           ]
-  #         InterpolateToMesh: None
-  #         CoordinatesFloatingPointType: Float
-  #         FloatingPointTypes: [Float]
 
 PhaseChangeAndTriggers:
-  - Trigger:
-      Slabs:
-        EvenlySpaced:
-          # Current implementation checks wallclock at these global syncs
-          Interval: 10
-          Offset: 0
-    PhaseChanges:
-      - CheckpointAndExitAfterWallclock:
-          WallclockHours: 23.5
 
 ResourceInfo:
   AvoidGlobalProc0: false

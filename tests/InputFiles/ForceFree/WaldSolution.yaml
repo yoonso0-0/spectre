@@ -1,0 +1,211 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+Executable: EvolveForceFree
+Testing:
+  Check: parse;execute
+
+---
+
+InitialData: &InitialData
+  ExactWald:
+    MagneticFieldAmplitude : 1.0
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.0005
+  TimeStepper:
+    Rk3PareschiSsp4
+    # Rk3Kennedy
+  ImexMode: Implicit
+  ImexImplicitSolveTolerance: 1.0e-10
+  # TimeStepper: Rk3HesthavenSsp
+
+Observers:
+  VolumeFileName: "ForceFreeWaldSolutionLev5Volume"
+  ReductionFileName: "ForceFreeWaldSolutionLev5Reductions"
+  SurfaceFileName: "ForceFreeSurfaceData"
+
+EvolutionSystem:
+  ForceFree:
+    ConstraintDamping:
+      KappaPsi: 1.0
+      KappaPhi: 1.0
+    ForceFreeCurrent:
+      ParallelConductivity: 1e5
+
+Filtering:
+  # ExpFilter0:
+  #   Alpha: 36.0
+  #   HalfPower: 24
+  #   Enable: false
+  #   BlocksToFilter: All
+
+# DomainCreator:
+  # Brick:
+  #   LowerBound: [3, 3, 3]
+  #   UpperBound: [-3, -3, -3]
+  #   InitialRefinement: [3, 3, 3]
+  #   InitialGridPoints: [4, 4, 4]
+  #   TimeDependence: None
+  #   BoundaryConditionInX: &Analytic
+  #     DirichletAnalytic:
+  #       AnalyticPrescription: *InitialData
+  #   BoundaryConditionInY: *Analytic
+  #   BoundaryConditionInZ: *Analytic
+
+DomainCreator:
+  Sphere:
+    InnerRadius: 2.0
+    OuterRadius: 8
+    Interior:
+      ExciseWithBoundaryCondition:
+        DirichletAnalytic:
+          AnalyticPrescription: *InitialData
+    InitialRefinement:
+      Shell0: [2, 2, 2]
+      Shell1: [1, 1, 1]
+    InitialGridPoints: 3
+    UseEquiangularMap: false
+    EquatorialCompression: None
+    RadialPartitioning: [4.0]
+    RadialDistribution: Linear
+    WhichWedges: All
+    TimeDependentMaps: None
+    OuterBoundaryCondition:
+      DirichletAnalytic:
+        AnalyticPrescription: *InitialData
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Rusanov:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+    Subcell:
+      RdmpDelta0: 1.0e-1
+      RdmpEpsilon: 1.0e-1
+      PerssonExponent: 2.0
+      InitialData:
+        RdmpDelta0: 1.0e-7
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 4.0
+      AlwaysUseSubcells: false
+      SubcellToDgReconstructionMethod: DimByDim
+      UseHalo: false
+      OnlyDgBlocksAndGroups: None
+      FiniteDifferenceDerivativeOrder: 2
+    TciOptions:
+      CutoffTildeQ: 1.0e-2
+      CutoffTildeJ: 1.0e-2
+      CutoffHeating: 1.0e-5
+  SubcellSolver:
+    Reconstructor:
+      # MonotonisedCentral
+      Wcns5z:
+        NonlinearWeightExponent: 2
+        Epsilon: 1e-15
+        FallbackReconstructor: None
+        MaxNumberOfExtrema: 2
+
+EventsAndTriggers:
+  # - Trigger:
+  #     TimeCompares:
+  #       Comparison: GreaterThanOrEqualTo
+  #       Value: 0.06
+  #   Events:
+  #     - Completion
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [1]
+    Events:
+      - Completion
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [0]
+    Events:
+      - ChangeSlabSize:
+          DelayChange: 0
+          StepChoosers:
+            - Cfl:
+                SafetyFactor: 0.3
+  # - Trigger:
+  #     Slabs:
+  #       EvenlySpaced:
+  #         Interval: 10
+  #         Offset: 0
+  #   Events:
+  #     - ObserveTimeStep:
+  #         SubfileName: time_steps
+  #         PrintTimeToTerminal: true
+  #         ObservePerCore: false
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 1
+          Offset: 0
+    Events:
+      # - MagneticFluxThroughSphere
+      - PoyntingFluxOnSphere
+      - ObserveFields:
+          SubfileName: VolumeData
+          VariablesToObserve: [
+              # ElectricField, MagneticField,
+              TildeE, TildeB,
+              Error(TildeE), Error(TildeB),
+              ChargeDensity,
+              TildeJ,
+              TildePhi, TildePsi,
+              # SpatialCurrentDensity,
+              ElectricFieldDotMagneticField,
+              # NsInteriorSpatialVelocity,
+              # TciStatus,
+              # NsInteriorMask,
+              Lapse, Shift,
+            ]
+          InterpolateToMesh: None
+          CoordinatesFloatingPointType: Float
+          FloatingPointTypes: [Float]
+
+EventsAndDenseTriggers:
+  # - Trigger:
+  #     Times:
+  #       Specified:
+  #         Values: [0.0, 0.01, 0.02, 0.03, 0.04]
+  #   Events:
+  #     - ObserveFields:
+  #         SubfileName: VolumeData
+  #         VariablesToObserve: [
+  #           ElectricField,
+  #           MagneticField,
+  #           # ChargeDensity,
+  #           # SpatialCurrentDensity,
+  #           # TildeQ, Error(TildeQ),
+  #           # SpatialCurrentDensity,
+  #           # MagneticDivergenceCleaningField,
+  #           # ElectricDivergenceCleaningField,
+  #           ElectricFieldDotMagneticField
+  #           ]
+  #         InterpolateToMesh: None
+  #         CoordinatesFloatingPointType: Float
+  #         FloatingPointTypes: [Float]
+  #         OverrideObservationValue: None
+
+InterpolationTargets:
+  # MagneticFluxThroughSphere:
+  #   LMax: 30
+  #   Radius: 2.0
+  #   Center: [0, 0, 0]
+  #   AngularOrdering: Strahlkorper
+  PoyntingFluxOnSphere:
+    LMax: 50
+    Radius: 2.0
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
+
+PhaseChangeAndTriggers:
+
+ResourceInfo:
+  AvoidGlobalProc0: false
