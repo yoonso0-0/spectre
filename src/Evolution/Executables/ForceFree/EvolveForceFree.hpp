@@ -70,7 +70,9 @@
 #include "Evolution/Systems/ForceFree/FiniteDifference/Factory.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Reconstructor.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Tags.hpp"
+#include "Evolution/Systems/ForceFree/ImposeMhdConditionInsideNs.hpp"
 #include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
+#include "Evolution/Systems/ForceFree/NsInteriorSpatialVelocity.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/GhostData.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/NeighborPackagedData.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/SetInitialRdmpData.hpp"
@@ -90,6 +92,7 @@
 #include "NumericalAlgorithms/LinearOperators/Filters/Tag.hpp"
 #include "Options/Options.hpp"
 #include "Options/Protocols/FactoryCreation.hpp"
+#include "Options/String.hpp"
 #include "Parallel/Local.hpp"
 #include "Parallel/Phase.hpp"
 #include "Parallel/PhaseControl/CheckpointAndExitAfterWallclock.hpp"
@@ -118,6 +121,7 @@
 #include "PointwiseFunctions/AnalyticData/ForceFree/Factory.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/ForceFree/Factory.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
+#include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "PointwiseFunctions/InitialDataUtilities/InitialData.hpp"
 #include "Time/Actions/SelfStartActions.hpp"
 #include "Time/AdvanceTime.hpp"
@@ -298,6 +302,7 @@ struct EvolutionMetavars {
       evolution::dg::Actions::ApplyLtsBoundaryCorrections<
           volume_dim, use_dg_element_collection>,
       imex::Actions::DoImplicitStep<system>,
+      Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>,
       Actions::MutateApply<ChangeTimeStepperOrder<system>>,
       tmpl::conditional_t<
           use_dg_subcell,
@@ -340,6 +345,7 @@ struct EvolutionMetavars {
           tmpl::list<imex::ImplicitDenseOutput<system>>>,
       Actions::MutateApply<UpdateU<system>>,
       imex::Actions::DoImplicitStep<system>,
+      Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>,
       Actions::MutateApply<CleanHistory<system>>,
       Actions::MutateApply<imex::CleanHistory<system>>,
       Actions::MutateApply<evolution::dg::CleanMortarHistory<volume_dim>>,
@@ -414,11 +420,12 @@ struct EvolutionMetavars {
       //        the TimeStepperHistory action
       Initialization::Actions::InitializeItems<imex::Initialize<system>>,
 
-      Initialization::Actions::AddComputeTags<
-          tmpl::list<ForceFree::Tags::TildeESquaredCompute,
-                     ForceFree::Tags::TildeBSquaredCompute,
-                     ForceFree::Tags::TildeEDotTildeBCompute,
-                     ForceFree::Tags::ComputeTildeJ>>,
+      Initialization::Actions::AddComputeTags<tmpl::list<
+          ForceFree::Tags::TildeESquaredCompute,
+          ForceFree::Tags::TildeBSquaredCompute,
+          ForceFree::Tags::TildeEDotTildeBCompute,
+          ForceFree::Tags::ComputeTildeJ,
+          ForceFree::Tags::NsInteriorSpatialVelocityCompute<use_dg_subcell>>>,
 
       Initialization::Actions::AddComputeTags<
           StepChoosers::step_chooser_compute_tags<EvolutionMetavars>>,
