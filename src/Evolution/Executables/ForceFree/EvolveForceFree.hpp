@@ -31,6 +31,8 @@
 #include "Evolution/Systems/ForceFree/BoundaryConditions/BoundaryCondition.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryConditions/Factory.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryCorrections/Factory.hpp"
+#include "Evolution/Systems/ForceFree/BoundaryCorrections/RegisterDerived.hpp"
+#include "Evolution/Systems/ForceFree/Constraints.hpp"
 #include "Evolution/Systems/ForceFree/ElectricCurrentDensity.hpp"
 #include "Evolution/Systems/ForceFree/ElectromagneticVariables.hpp"
 #include "Evolution/Systems/ForceFree/ForceFreeConstraints.hpp"

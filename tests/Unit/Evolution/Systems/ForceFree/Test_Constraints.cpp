@@ -4,11 +4,11 @@
 #include "Framework/TestingFramework.hpp"
 
 #include "DataStructures/DataVector.hpp"
-#include "Evolution/Systems/ForceFree/ForceFreeConstraints.hpp"
+#include "Evolution/Systems/ForceFree/Constraints.hpp"
 #include "Framework/CheckWithRandomValues.hpp"
 #include "Framework/SetupLocalPythonEnvironment.hpp"
 
-SPECTRE_TEST_CASE("Unit.Evolution.Systems.ForceFree.ForceFreeConstraints",
+SPECTRE_TEST_CASE("Unit.Evolution.Systems.ForceFree.Constraints",
                   "[Unit][Evolution]") {
   pypp::SetupLocalPythonEnvironment local_python_env{
       "Evolution/Systems/ForceFree"};
