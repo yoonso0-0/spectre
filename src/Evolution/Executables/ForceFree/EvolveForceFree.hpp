@@ -65,7 +65,9 @@
 #include "Evolution/Systems/ForceFree/FiniteDifference/Reconstructor.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/RegisterDerivedWithCharm.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Tags.hpp"
+#include "Evolution/Systems/ForceFree/ImposeMhdConditionInsideNs.hpp"
 #include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
+#include "Evolution/Systems/ForceFree/NsInteriorSpatialVelocity.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/GhostData.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/NeighborPackagedData.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/SetInitialRdmpData.hpp"
@@ -85,10 +87,13 @@
 #include "NumericalAlgorithms/LinearOperators/ExponentialFilter.hpp"
 #include "Options/Options.hpp"
 #include "Options/Protocols/FactoryCreation.hpp"
+#include "Options/String.hpp"
+#include "Parallel/InitializationFunctions.hpp"
 #include "Parallel/Local.hpp"
 #include "Parallel/Phase.hpp"
 #include "Parallel/PhaseControl/CheckpointAndExitAfterWallclock.hpp"
 #include "Parallel/PhaseControl/ExecutePhaseChange.hpp"
+#include "Parallel/PhaseControl/Factory.hpp"
 #include "Parallel/PhaseControl/PhaseChange.hpp"
 #include "Parallel/PhaseControl/VisitAndReturn.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"
@@ -113,6 +118,7 @@
 #include "PointwiseFunctions/AnalyticData/ForceFree/Factory.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/ForceFree/Factory.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
+#include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "PointwiseFunctions/InitialDataUtilities/InitialData.hpp"
 #include "Time/Actions/AdvanceTime.hpp"
 #include "Time/Actions/CleanHistory.hpp"
@@ -129,6 +135,10 @@
 #include "Time/TimeSteppers/LtsTimeStepper.hpp"
 #include "Time/TimeSteppers/TimeStepper.hpp"
 #include "Time/Triggers/TimeTriggers.hpp"
+#include "Utilities/Blas.hpp"
+#include "Utilities/ErrorHandling/FloatingPointExceptions.hpp"
+#include "Utilities/ErrorHandling/SegfaultHandler.hpp"
+#include "Utilities/MemoryHelpers.hpp"
 #include "Utilities/ProtocolHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 
@@ -234,10 +244,7 @@ struct EvolutionMetavars {
                        Events::time_events<system>>>>,
         tmpl::pair<evolution::initial_data::InitialData, initial_data_list>,
         tmpl::pair<LtsTimeStepper, TimeSteppers::lts_time_steppers>,
-        tmpl::pair<PhaseChange,
-                   tmpl::list<PhaseControl::VisitAndReturn<
-                                  Parallel::Phase::LoadBalancing>,
-                              PhaseControl::CheckpointAndExitAfterWallclock>>,
+        tmpl::pair<PhaseChange, PhaseControl::factory_creatable_classes>,
         tmpl::pair<StepChooser<StepChooserUse::LtsStep>,
                    StepChoosers::standard_step_choosers<system>>,
         tmpl::pair<
@@ -314,6 +321,9 @@ struct EvolutionMetavars {
 
       ForceFree::Actions::ObserveEdotB<false>,
 
+      // Interior BC or heck inside the horizon, depending on the ID type
+      Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>,
+
       Actions::CleanHistory<system, local_time_stepping>,
 
       Limiters::Actions::SendData<EvolutionMetavars>,
@@ -327,7 +337,6 @@ struct EvolutionMetavars {
 
       >>;
 
-  // FIXME add Dense events for local time stepping
   using dg_subcell_step_actions = tmpl::flatten<tmpl::list<
       evolution::dg::subcell::Actions::SelectNumericalMethod,
 
@@ -349,6 +358,8 @@ struct EvolutionMetavars {
       // implicit step
       tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,
                           tmpl::list<>>,
+      // Interior BC
+      Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>,
 
       evolution::dg::subcell::Actions::TciAndRollback<
           ForceFree::subcell::TciOnDgGrid>,
@@ -384,6 +395,8 @@ struct EvolutionMetavars {
       // implicit step
       tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,
                           tmpl::list<>>,
+      // Interior BC
+      Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>,
 
       evolution::dg::subcell::Actions::TciAndSwitchToDg<
           ForceFree::subcell::TciOnFdGrid>,
@@ -449,11 +462,12 @@ struct EvolutionMetavars {
           Initialization::Actions::InitializeItems<imex::Initialize<system>>,
           tmpl::list<>>,
 
-      Initialization::Actions::AddComputeTags<
-          tmpl::list<ForceFree::Tags::TildeESquaredCompute,
-                     ForceFree::Tags::TildeBSquaredCompute,
-                     ForceFree::Tags::TildeEDotTildeBCompute,
-                     ForceFree::Tags::ComputeTildeJ>>,
+      Initialization::Actions::AddComputeTags<tmpl::list<
+          ForceFree::Tags::TildeESquaredCompute,
+          ForceFree::Tags::TildeBSquaredCompute,
+          ForceFree::Tags::TildeEDotTildeBCompute,
+          ForceFree::Tags::ComputeTildeJ,
+          ForceFree::Tags::NsInteriorSpatialVelocityCompute<use_dg_subcell>>>,
 
       Initialization::Actions::AddComputeTags<
           StepChoosers::step_chooser_compute_tags<EvolutionMetavars,
