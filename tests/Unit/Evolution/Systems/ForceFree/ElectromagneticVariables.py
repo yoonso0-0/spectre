@@ -46,3 +46,6 @@ def magnetic_dominance_violation_compute(
         max(tilde_e_squared - tilde_b_squared, 0.0)
         / sqrt_det_spatial_metric**2
     )
+
+
+# end functions for testing Constraints

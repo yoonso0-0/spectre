@@ -19,10 +19,10 @@ set(LIBRARY_SOURCES
   Subcell/Test_TciOnFdGrid.cpp
   Subcell/Test_TciOptions.cpp
   Test_Characteristics.cpp
+  Test_Constraints.cpp
   Test_ElectricCurrentDensity.cpp
   Test_ElectromagneticVariables.cpp
   Test_Fluxes.cpp
-  Test_ForceFreeConstraints.cpp
   Test_MaskNeutronStarInterior.cpp
   Test_Sources.cpp
   Test_System.cpp

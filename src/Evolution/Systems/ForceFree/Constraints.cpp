@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "Evolution/Systems/ForceFree/ForceFreeConstraints.hpp"
+#include "Evolution/Systems/ForceFree/Constraints.hpp"
 
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tags/TempTensor.hpp"
