@@ -8,8 +8,8 @@ Testing:
 ---
 
 InitialData: &InitialData
-  OverlappingAlfvenWaves:
-    NormalizedWaveAmplitude: 0.1
+  AlfvenWave:
+    WaveSpeed: 0.0
 
 Evolution:
   InitialTime: 0.0
@@ -21,8 +21,9 @@ Evolution:
   ImexImplicitSolveTolerance: 1.0e-10
 
 Observers:
-  VolumeFileName: "ForceFreeOverlappingAlfvenWavesLev5Volume"
-  ReductionFileName: "ForceFreeOverlappingAlfvenWavesLev5Reductions"
+  VolumeFileName: "ForceFreeAlfvenWaveLev5Volume"
+  ReductionFileName: "ForceFreeAlfvenWaveLev5Reductions"
+  SurfaceFileName: "Surface"
 
 EvolutionSystem:
   ForceFree:
@@ -34,12 +35,22 @@ EvolutionSystem:
 
 DomainCreator:
   Brick:
-    LowerBound: [0, 0, 0]
-    UpperBound: [1.0, 1.0, 1.0]
-    InitialRefinement: [2, 2, 2]
+    # LowerBound: [-0.0625, -0.1, -0.1]
+    # UpperBound: [0.0, 0.1, 0.1]
+    # InitialRefinement: [0, 0, 0]
+    # InitialGridPoints: [2, 2, 2]
+    # LowerBound: [-0.1, -0.1, -0.1]
+    # UpperBound: [0.1, 0.1, 0.1]
+    # InitialRefinement: [0, 0, 0]
+    # InitialGridPoints: [2, 2, 2]
+    LowerBound: [-0.5, -0.1, -0.1]
+    UpperBound: [0.5, 0.1, 0.1]
+    InitialRefinement: [5, 0, 0]
     InitialGridPoints: [5, 5, 5]
     TimeDependence: None
-    BoundaryConditionInX: Periodic
+    BoundaryConditionInX: Nonreflecting
+      # DirichletAnalytic:
+      #   AnalyticPrescription: *InitialData
     BoundaryConditionInY: Periodic
     BoundaryConditionInZ: Periodic
 
@@ -58,36 +69,45 @@ SpatialDiscretization:
   DiscontinuousGalerkin:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
-  #   Subcell:
-  #     RdmpDelta0: 1.0e-2
-  #     RdmpEpsilon: 1.0e-2
-  #     PerssonExponent: 2.0
-  #     InitialData:
-  #       RdmpDelta0: 1.0e-7
-  #       RdmpEpsilon: 1.0e-3
-  #       PerssonExponent: 4.0
-  #     AlwaysUseSubcells: false
-  #     SubcellToDgReconstructionMethod: DimByDim
-  #     UseHalo: false
-  #     OnlyDgBlocksAndGroups: None
-  #     FiniteDifferenceDerivativeOrder: 2
-  #   TciOptions:
-  #     CutoffTildeQ: 1.0e-5
-  #     CutoffTildeJ: 1.0e-5
-  # SubcellSolver:
-  #   Reconstructor:
-  #     MonotonisedCentral
+    Subcell:
+      RdmpDelta0: 1.0e-2
+      RdmpEpsilon: 1.0e-2
+      PerssonExponent: 3.0
+      InitialData:
+        RdmpDelta0: 1.0e-2
+        RdmpEpsilon: 1.0e-2
+        PerssonExponent: 3.0
+      AlwaysUseSubcells: False
+      SubcellToDgReconstructionMethod: DimByDim
+      UseHalo: false
+      OnlyDgBlocksAndGroups: None
+      FiniteDifferenceDerivativeOrder: 2
+    TciOptions:
+      AlphaEmFields: 3.5
+      CutoffTildeQ: 1.0e10
+      CutoffTildeJ: 1.0e10
+      MonitorNormalizedJForCutoff: false
+      CutoffHeating: 1.0e10
+      MonitorNormalizedHeatingForCutoff: false
+  SubcellSolver:
+    Reconstructor:
+      MonotonisedCentral
       # Wcns5z:
       #   NonlinearWeightExponent: 2
       #   Epsilon: 1e-15
       #   FallbackReconstructor: None
       #   MaxNumberOfExtrema: 0
+      # AdaptiveOrder:
+        # Alpha9: None
+        # Alpha7: None
+        # Alpha5: 4.0
+        # LowOrderReconstructor: MonotonisedCentral
 
 EventsAndTriggers:
   - Trigger:
       Slabs:
         Specified:
-          Values: [10]
+          Values: [200]
     Events:
       - Completion
   # - Trigger:
@@ -119,7 +139,7 @@ EventsAndTriggers:
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 1
+          Interval: 5
           Offset: 0
     Events:
       - ObserveFields:
@@ -127,13 +147,13 @@ EventsAndTriggers:
           VariablesToObserve: [
               ElectricField, MagneticField,
               ChargeDensity,
-              TildeJ,
-              TildePsi, TildePhi,
+              ElectricCurrentDensity,
               # Error(TildeE), Error(TildeB),
               ElectricFieldDotMagneticField,
               # MagneticDominanceViolation,
               # JouleHeating,
-              # TciStatus,
+              TildePsi, TildePhi,
+              TciStatus,
             ]
           InterpolateToMesh: None
           CoordinatesFloatingPointType: Float
@@ -145,3 +165,16 @@ PhaseChangeAndTriggers:
 
 ResourceInfo:
   AvoidGlobalProc0: false
+  Singletons: Auto
+
+InterpolationTargets:
+  TotalMagneticFluxOnSphere:
+    LMax: 30
+    Radius: 2.0
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
+  PoyntingFluxOnSphere:
+    LMax: 50
+    Radius: 2.0
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
