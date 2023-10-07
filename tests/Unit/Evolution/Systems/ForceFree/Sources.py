@@ -23,6 +23,7 @@ def source_tilde_e(
     kappa_psi,
     kappa_phi,
     parallel_conductivity,
+    interior_mask,
     lapse,
     d_lapse,
     d_shift,
@@ -40,6 +41,7 @@ def source_tilde_e(
         lapse,
         sqrt_det_spatial_metric,
         spatial_metric,
+        interior_mask,
     )
     return (
         -tilde_j
@@ -64,6 +66,7 @@ def source_tilde_b(
     kappa_psi,
     kappa_phi,
     parallel_conductivity,
+    interior_mask,
     lapse,
     d_lapse,
     d_shift,
@@ -89,6 +92,7 @@ def source_tilde_phi(
     kappa_psi,
     kappa_phi,
     parallel_conductivity,
+    interior_mask,
     lapse,
     d_lapse,
     d_shift,
@@ -112,6 +116,7 @@ def source_tilde_psi(
     kappa_psi,
     kappa_phi,
     parallel_conductivity,
+    interior_mask,
     lapse,
     d_lapse,
     d_shift,
