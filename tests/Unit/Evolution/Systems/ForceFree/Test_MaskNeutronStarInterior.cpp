@@ -15,7 +15,9 @@
 #include "Domain/ElementMap.hpp"
 #include "Domain/Structure/ElementId.hpp"
 #include "Domain/Tags.hpp"
+#include "Evolution/DgSubcell/ActiveGrid.hpp"
 #include "Evolution/DgSubcell/Mesh.hpp"
+#include "Evolution/DgSubcell/Tags/ActiveGrid.hpp"
 #include "Evolution/DgSubcell/Tags/Coordinates.hpp"
 #include "Evolution/DgSubcell/Tags/Inactive.hpp"
 #include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
@@ -76,10 +78,11 @@ SPECTRE_TEST_CASE("Unit.Evolution.Systems.ForceFree.MaskNsInterior",
   auto box = db::create<db::AddSimpleTags<
       domain::Tags::Coordinates<3, Frame::Inertial>,
       evolution::dg::subcell::Tags::Coordinates<3, Frame::Inertial>,
-      Tags::NsInteriorMask,
+      evolution::dg::subcell::Tags::ActiveGrid, Tags::NsInteriorMask,
       evolution::dg::subcell::Tags::Inactive<Tags::NsInteriorMask>,
       evolution::initial_data::Tags::InitialData>>(
       dg_inertial_coords, subcell_inertial_coords,
+      evolution::dg::subcell::ActiveGrid::Subcell,
       std::optional<Scalar<DataVector>>{}, std::optional<Scalar<DataVector>>{},
       AnalyticData::RotatingDipole{1.0, 0.1, 0.1, 0.1, 0.5}.get_clone());
 
