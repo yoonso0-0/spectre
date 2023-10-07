@@ -40,6 +40,7 @@ spectre_target_headers(
   SliceTensor.hpp
   SliceVariable.hpp
   SubcellOptions.hpp
+  SwapGrTags.hpp
   TwoMeshRdmpTci.hpp
   )
 
