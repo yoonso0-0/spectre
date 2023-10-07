@@ -8,6 +8,7 @@
 
 #include <array>
 #include <complex>
+#include <optional>
 #include <type_traits>
 #include <vector>
 
@@ -113,6 +114,15 @@ struct MakeWithValueImpl<std::complex<double>, T> {
   static SPECTRE_ALWAYS_INLINE std::complex<double> apply(
       const T& /* input */, const std::complex<double> value) {
     return value;
+  }
+};
+
+template <typename T, typename InputType>
+struct MakeWithValueImpl<std::optional<T>, InputType> {
+  template <typename ValueType>
+  static SPECTRE_ALWAYS_INLINE std::optional<T> apply(const InputType& input,
+                                                      const ValueType value) {
+    return std::optional<T>{make_with_value<T>(input, value)};
   }
 };
 

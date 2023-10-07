@@ -9,6 +9,7 @@
 #include <complex>
 #include <cstddef>
 #include <limits>
+#include <optional>
 #include <random>
 
 #include "DataStructures/SpinWeighted.hpp"
@@ -54,6 +55,29 @@ struct FillWithRandomValuesImpl<std::complex<T>> {
         "Mismatch between data type and random number type.");
     data->real((*distribution)(*generator));
     data->imag((*distribution)(*generator));
+  }
+};
+
+template <typename T>
+struct FillWithRandomValuesImpl<std::optional<T>> {
+  template <typename UniformRandomBitGenerator,
+            typename RandomNumberDistribution>
+  static void apply(
+      const gsl::not_null<std::optional<T>*> data,
+      const gsl::not_null<UniformRandomBitGenerator*> generator,
+      const gsl::not_null<RandomNumberDistribution*> distribution) {
+    std::uniform_real_distribution<double> local_dist{0.0, 1.0};
+    const double decider = local_dist(*generator);
+
+    // randomly choose whether to assign the optional value or not.
+    if (decider < 0.5) {
+      *data = std::nullopt;
+    } else {
+      for (auto& d : (*data).value()) {
+        FillWithRandomValuesImpl<std::decay_t<decltype(d)>>::apply(
+            &d, generator, distribution);
+      }
+    }
   }
 };
 
@@ -141,6 +165,7 @@ class UniformCustomDistribution
 template <>
 class UniformCustomDistribution<bool> {
   using base = NoSuchType;
+
  public:
   using result_type = bool;
   /// \cond
