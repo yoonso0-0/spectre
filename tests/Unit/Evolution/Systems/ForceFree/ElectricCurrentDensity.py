@@ -16,6 +16,7 @@ def tilde_j_drift(
     lapse,
     sqrt_det_spatial_metric,
     spatial_metric,
+    ns_interior_mask,
 ):
     tilde_e_one_form = np.einsum("a, ia", tilde_e, spatial_metric)
     tilde_b_one_form = np.einsum("a, ia", tilde_b, spatial_metric)
@@ -32,7 +33,11 @@ def tilde_j_drift(
     # overall scaling
     result = result * lapse * tilde_q / tilde_b_squared
 
-    return result
+    # handling optional mask
+    if ns_interior_mask is None:
+        return result
+    else:
+        return np.where(ns_interior_mask > 0.0, result, 0.0)
 
 
 def tilde_j_parallel(
@@ -43,6 +48,7 @@ def tilde_j_parallel(
     lapse,
     sqrt_det_spatial_metric,
     spatial_metric,
+    ns_interior_mask,
 ):
     tilde_e_one_form = np.einsum("a, ia", tilde_e, spatial_metric)
     tilde_b_one_form = np.einsum("a, ia", tilde_b, spatial_metric)
@@ -51,7 +57,7 @@ def tilde_j_parallel(
     tilde_b_squared = np.einsum("a, a", tilde_b_one_form, tilde_b)
     tilde_e_dot_tilde_b = np.einsum("a, a", tilde_e_one_form, tilde_b)
 
-    return (
+    result = (
         parallel_conductivity
         * lapse
         * (
@@ -60,6 +66,12 @@ def tilde_j_parallel(
         )
         / tilde_b_squared
     )
+
+    # handling optional mask
+    if ns_interior_mask is None:
+        return result
+    else:
+        return np.where(ns_interior_mask > 0.0, result, 0.0)
 
 
 def tilde_j(
@@ -70,6 +82,7 @@ def tilde_j(
     lapse,
     sqrt_det_spatial_metric,
     spatial_metric,
+    ns_interior_mask,
 ):
     return tilde_j_drift(
         tilde_q,
@@ -79,6 +92,7 @@ def tilde_j(
         lapse,
         sqrt_det_spatial_metric,
         spatial_metric,
+        ns_interior_mask,
     ) + tilde_j_parallel(
         tilde_q,
         tilde_e,
@@ -87,4 +101,5 @@ def tilde_j(
         lapse,
         sqrt_det_spatial_metric,
         spatial_metric,
+        ns_interior_mask,
     )

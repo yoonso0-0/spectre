@@ -70,7 +70,8 @@ class DirichletAnalytic final : public BoundaryCondition {
   using dg_interior_evolved_variables_tags = tmpl::list<>;
   using dg_interior_temporary_tags =
       tmpl::list<domain::Tags::Coordinates<3, Frame::Inertial>>;
-  using dg_gridless_tags = tmpl::list<::Tags::Time, Tags::ParallelConductivity>;
+  using dg_gridless_tags = tmpl::list<::Tags::Time, Tags::ParallelConductivity,
+                                      Tags::NsInteriorMask>;
 
   std::optional<std::string> dg_ghost(
       const gsl::not_null<tnsr::I<DataVector, 3, Frame::Inertial>*> tilde_e,
@@ -101,8 +102,10 @@ class DirichletAnalytic final : public BoundaryCondition {
       const tnsr::I<DataVector, 3, Frame::Inertial>& /*normal_vector*/,
 
       const tnsr::I<DataVector, 3, Frame::Inertial>& coords,
-      [[maybe_unused]] const double time,
-      const double parallel_conductivity) const;
+
+      [[maybe_unused]] const double time, const double parallel_conductivity,
+      const std::optional<Scalar<DataVector>>& neutron_star_interior_mask)
+      const;
 
  private:
   std::unique_ptr<evolution::initial_data::InitialData> analytic_prescription_;

@@ -38,6 +38,8 @@ void forward_to_time_deriv(
     const double kappa_psi, const double kappa_phi,
     const double parallel_conductivity,
 
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask,
+
     const Scalar<DataVector>& lapse,
     const tnsr::I<DataVector, 3, Frame::Inertial>& shift,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
@@ -80,6 +82,8 @@ void forward_to_time_deriv(
 
       tilde_e, tilde_b, tilde_psi, tilde_phi, tilde_q, tilde_j_drift, kappa_psi,
       kappa_phi, parallel_conductivity,
+
+      neutron_star_interior_mask,
 
       lapse, shift, sqrt_det_spatial_metric, spatial_metric, inv_spatial_metric,
       extrinsic_curvature, d_lapse, d_shift, d_spatial_metric);

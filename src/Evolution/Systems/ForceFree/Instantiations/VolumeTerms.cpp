@@ -50,6 +50,8 @@ template void volume_terms<::ForceFree::TimeDerivativeTerms>(
     const double& kappa_psi, const double& kappa_phi,
     const double& parallel_conductivity,
 
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask,
+
     const Scalar<DataVector>& lapse,
     const tnsr::I<DataVector, 3, Frame::Inertial>& shift,
     const Scalar<DataVector>& sqrt_det_spatial_metric,

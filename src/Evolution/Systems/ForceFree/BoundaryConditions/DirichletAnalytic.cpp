@@ -81,8 +81,9 @@ std::optional<std::string> DirichletAnalytic::dg_ghost(
     const tnsr::I<DataVector, 3, Frame::Inertial>& /*normal_vector*/,
 
     const tnsr::I<DataVector, 3, Frame::Inertial>& coords,
-    [[maybe_unused]] const double time,
-    const double parallel_conductivity) const {
+
+    [[maybe_unused]] const double time, const double parallel_conductivity,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) const {
   auto boundary_values = call_with_dynamic_type<
       tuples::TaggedTuple<Tags::TildeE, Tags::TildeB, Tags::TildePsi,
                           Tags::TildePhi, Tags::TildeQ,
@@ -136,12 +137,19 @@ std::optional<std::string> DirichletAnalytic::dg_ghost(
   const auto& spatial_metric =
       get<gr::Tags::SpatialMetric<DataVector, 3>>(boundary_values);
 
+  if (neutron_star_interior_mask.has_value()) {
+    ERROR(
+        "Masked interior region should not cross the external boundary of "
+        "domain.");
+  }
+
   // allocate a temp buffer to compute \tilde{J}^i
   Variables<tmpl::list<::Tags::TempI<0, 3>>> buffer{get(*tilde_q).size()};
   auto& tilde_j = get<::Tags::TempI<0, 3>>(buffer);
   Tags::ComputeTildeJ::function(make_not_null(&tilde_j), *tilde_q, *tilde_e,
                                 *tilde_b, parallel_conductivity, *lapse,
-                                sqrt_det_spatial_metric, spatial_metric);
+                                sqrt_det_spatial_metric, spatial_metric,
+                                std::optional<Scalar<DataVector>>{});
 
   // compute corresponding fluxes
   ForceFree::Fluxes::apply(
