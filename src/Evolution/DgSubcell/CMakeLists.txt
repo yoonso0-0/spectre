@@ -44,6 +44,7 @@ spectre_target_headers(
   SliceVariable.hpp
   SubcellEqualRateRegion.hpp
   SubcellOptions.hpp
+  SwapGrTags.hpp
   TwoMeshRdmpTci.hpp
   )
 
