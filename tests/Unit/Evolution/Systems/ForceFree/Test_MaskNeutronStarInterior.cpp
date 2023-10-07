@@ -15,7 +15,9 @@
 #include "Domain/ElementMap.hpp"
 #include "Domain/Structure/ElementId.hpp"
 #include "Domain/Tags.hpp"
+#include "Evolution/DgSubcell/ActiveGrid.hpp"
 #include "Evolution/DgSubcell/Mesh.hpp"
+#include "Evolution/DgSubcell/Tags/ActiveGrid.hpp"
 #include "Evolution/DgSubcell/Tags/Coordinates.hpp"
 #include "Evolution/DgSubcell/Tags/Inactive.hpp"
 #include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
@@ -76,10 +78,11 @@ SPECTRE_TEST_CASE("Unit.Evolution.Systems.ForceFree.MaskNsInterior",
   auto box = db::create<db::AddSimpleTags<
       domain::Tags::Coordinates<3, Frame::Inertial>,
       evolution::dg::subcell::Tags::Coordinates<3, Frame::Inertial>,
-      Tags::NsInteriorMask,
+      evolution::dg::subcell::Tags::ActiveGrid, Tags::NsInteriorMask,
       evolution::dg::subcell::Tags::Inactive<Tags::NsInteriorMask>,
       evolution::initial_data::Tags::InitialData>>(
       dg_inertial_coords, subcell_inertial_coords,
+      evolution::dg::subcell::ActiveGrid::Subcell,
       std::optional<Scalar<DataVector>>{}, std::optional<Scalar<DataVector>>{},
       AnalyticData::RotatingDipole{1.0, 0.1, 0.1, 0.1, 0.5}.get_clone());
 
@@ -90,19 +93,19 @@ SPECTRE_TEST_CASE("Unit.Evolution.Systems.ForceFree.MaskNsInterior",
       make_not_null(&box));
 
   {
-    const auto dg_mask = get<Tags::NsInteriorMask>(box);
-    const Scalar<DataVector> dg_mask_from_python{pypp::call<Scalar<DataVector>>(
-        "MaskNeutronStarInterior", "compute_ns_interior_mask",
-        dg_inertial_coords)};
-    CHECK(dg_mask == dg_mask_from_python);
-
-    const auto subcell_mask =
-        get<evolution::dg::subcell::Tags::Inactive<Tags::NsInteriorMask>>(box);
+    const auto subcell_mask = get<Tags::NsInteriorMask>(box);
     const Scalar<DataVector> subcell_mask_from_python{
         pypp::call<Scalar<DataVector>>("MaskNeutronStarInterior",
                                        "compute_ns_interior_mask",
                                        subcell_inertial_coords)};
     CHECK(subcell_mask == subcell_mask_from_python);
+
+    const auto dg_mask =
+        get<evolution::dg::subcell::Tags::Inactive<Tags::NsInteriorMask>>(box);
+    const Scalar<DataVector> dg_mask_from_python{pypp::call<Scalar<DataVector>>(
+        "MaskNeutronStarInterior", "compute_ns_interior_mask",
+        dg_inertial_coords)};
+    CHECK(dg_mask == dg_mask_from_python);
   }
 
   // Initialize the mask variables back to `null`, push the coordinates far
