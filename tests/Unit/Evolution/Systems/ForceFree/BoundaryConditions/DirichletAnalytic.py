@@ -14,8 +14,9 @@ def soln_error(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return None
 
@@ -26,8 +27,9 @@ def soln_lapse(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return 1.0
 
@@ -38,8 +40,9 @@ def soln_shift(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return np.asarray([0.0, 0.0, 0.0])
 
@@ -62,8 +65,9 @@ def soln_tilde_e(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return fastwave.TildeE(coords, time)
 
@@ -74,8 +78,9 @@ def soln_tilde_b(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return fastwave.TildeB(coords, time)
 
@@ -86,8 +91,9 @@ def soln_tilde_psi(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return fastwave.TildePsi(coords, time)
 
@@ -98,8 +104,9 @@ def soln_tilde_phi(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return fastwave.TildePhi(coords, time)
 
@@ -110,8 +117,9 @@ def soln_tilde_q(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return fastwave.TildeQ(coords, time)
 
@@ -122,6 +130,7 @@ def soln_flux_tilde_e(
     outward_directed_normal_vector,
     coords,
     time,
+    ns_interior_mask,
     dim,
     parallel_conductivity,
 ):
@@ -138,6 +147,7 @@ def soln_flux_tilde_e(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     shift = soln_shift(
         face_mesh_velocity,
@@ -147,6 +157,7 @@ def soln_flux_tilde_e(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     sqrt_det_spatial_metric = soln_sqrt_det_spatial_metric(coords, time)
     spatial_metric = soln_spatial_metric(coords, time)
@@ -166,6 +177,7 @@ def soln_flux_tilde_e(
             lapse,
             sqrt_det_spatial_metric,
             spatial_metric,
+            ns_interior_mask,
         ),
         lapse,
         shift,
@@ -181,8 +193,9 @@ def soln_flux_tilde_b(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     tilde_e = fastwave.TildeE(coords, time)
     tilde_b = fastwave.TildeB(coords, time)
@@ -197,6 +210,7 @@ def soln_flux_tilde_b(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     shift = soln_shift(
         face_mesh_velocity,
@@ -206,6 +220,7 @@ def soln_flux_tilde_b(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     sqrt_det_spatial_metric = soln_sqrt_det_spatial_metric(coords, time)
     spatial_metric = soln_spatial_metric(coords, time)
@@ -225,6 +240,7 @@ def soln_flux_tilde_b(
             lapse,
             sqrt_det_spatial_metric,
             spatial_metric,
+            ns_interior_mask,
         ),
         lapse,
         shift,
@@ -240,8 +256,9 @@ def soln_flux_tilde_psi(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     tilde_e = fastwave.TildeE(coords, time)
     tilde_b = fastwave.TildeB(coords, time)
@@ -256,6 +273,7 @@ def soln_flux_tilde_psi(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     shift = soln_shift(
         face_mesh_velocity,
@@ -265,6 +283,7 @@ def soln_flux_tilde_psi(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     sqrt_det_spatial_metric = soln_sqrt_det_spatial_metric(coords, time)
     spatial_metric = soln_spatial_metric(coords, time)
@@ -284,6 +303,7 @@ def soln_flux_tilde_psi(
             lapse,
             sqrt_det_spatial_metric,
             spatial_metric,
+            ns_interior_mask,
         ),
         lapse,
         shift,
@@ -299,8 +319,9 @@ def soln_flux_tilde_phi(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     tilde_e = fastwave.TildeE(coords, time)
     tilde_b = fastwave.TildeB(coords, time)
@@ -315,6 +336,7 @@ def soln_flux_tilde_phi(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     shift = soln_shift(
         face_mesh_velocity,
@@ -324,6 +346,7 @@ def soln_flux_tilde_phi(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     sqrt_det_spatial_metric = soln_sqrt_det_spatial_metric(coords, time)
     spatial_metric = soln_spatial_metric(coords, time)
@@ -343,6 +366,7 @@ def soln_flux_tilde_phi(
             lapse,
             sqrt_det_spatial_metric,
             spatial_metric,
+            ns_interior_mask,
         ),
         lapse,
         shift,
@@ -358,8 +382,9 @@ def soln_flux_tilde_q(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     tilde_e = fastwave.TildeE(coords, time)
     tilde_b = fastwave.TildeB(coords, time)
@@ -374,6 +399,7 @@ def soln_flux_tilde_q(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     shift = soln_shift(
         face_mesh_velocity,
@@ -383,6 +409,7 @@ def soln_flux_tilde_q(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     sqrt_det_spatial_metric = soln_sqrt_det_spatial_metric(coords, time)
     spatial_metric = soln_spatial_metric(coords, time)
@@ -402,6 +429,7 @@ def soln_flux_tilde_q(
             lapse,
             sqrt_det_spatial_metric,
             spatial_metric,
+            ns_interior_mask,
         ),
         lapse,
         shift,
@@ -417,8 +445,9 @@ def data_tilde_e(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return breakdown.TildeE(coords)
 
@@ -429,8 +458,9 @@ def data_tilde_b(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return breakdown.TildeB(coords)
 
@@ -441,8 +471,9 @@ def data_tilde_psi(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return breakdown.TildePsi(coords)
 
@@ -453,8 +484,9 @@ def data_tilde_phi(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return breakdown.TildePhi(coords)
 
@@ -465,8 +497,9 @@ def data_tilde_q(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     return breakdown.TildeQ(coords)
 
@@ -477,8 +510,9 @@ def data_flux_tilde_e(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     tilde_e = breakdown.TildeE(coords)
     tilde_b = breakdown.TildeB(coords)
@@ -493,6 +527,7 @@ def data_flux_tilde_e(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     shift = soln_shift(
         face_mesh_velocity,
@@ -502,6 +537,7 @@ def data_flux_tilde_e(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     sqrt_det_spatial_metric = soln_sqrt_det_spatial_metric(coords, time)
     spatial_metric = soln_spatial_metric(coords, time)
@@ -521,6 +557,7 @@ def data_flux_tilde_e(
             lapse,
             sqrt_det_spatial_metric,
             spatial_metric,
+            ns_interior_mask,
         ),
         lapse,
         shift,
@@ -536,8 +573,9 @@ def data_flux_tilde_b(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     tilde_e = breakdown.TildeE(coords)
     tilde_b = breakdown.TildeB(coords)
@@ -552,6 +590,7 @@ def data_flux_tilde_b(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     shift = soln_shift(
         face_mesh_velocity,
@@ -561,6 +600,7 @@ def data_flux_tilde_b(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     sqrt_det_spatial_metric = soln_sqrt_det_spatial_metric(coords, time)
     spatial_metric = soln_spatial_metric(coords, time)
@@ -580,6 +620,7 @@ def data_flux_tilde_b(
             lapse,
             sqrt_det_spatial_metric,
             spatial_metric,
+            ns_interior_mask,
         ),
         lapse,
         shift,
@@ -595,8 +636,9 @@ def data_flux_tilde_psi(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     tilde_e = breakdown.TildeE(coords)
     tilde_b = breakdown.TildeB(coords)
@@ -611,6 +653,7 @@ def data_flux_tilde_psi(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     shift = soln_shift(
         face_mesh_velocity,
@@ -620,6 +663,7 @@ def data_flux_tilde_psi(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     sqrt_det_spatial_metric = soln_sqrt_det_spatial_metric(coords, time)
     spatial_metric = soln_spatial_metric(coords, time)
@@ -639,6 +683,7 @@ def data_flux_tilde_psi(
             lapse,
             sqrt_det_spatial_metric,
             spatial_metric,
+            ns_interior_mask,
         ),
         lapse,
         shift,
@@ -654,8 +699,9 @@ def data_flux_tilde_phi(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     tilde_e = breakdown.TildeE(coords)
     tilde_b = breakdown.TildeB(coords)
@@ -670,6 +716,7 @@ def data_flux_tilde_phi(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     shift = soln_shift(
         face_mesh_velocity,
@@ -679,6 +726,7 @@ def data_flux_tilde_phi(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     sqrt_det_spatial_metric = soln_sqrt_det_spatial_metric(coords, time)
     spatial_metric = soln_spatial_metric(coords, time)
@@ -698,6 +746,7 @@ def data_flux_tilde_phi(
             lapse,
             sqrt_det_spatial_metric,
             spatial_metric,
+            ns_interior_mask,
         ),
         lapse,
         shift,
@@ -713,8 +762,9 @@ def data_flux_tilde_q(
     outward_directed_normal_vector,
     coords,
     time,
-    dim,
     parallel_conductivity,
+    ns_interior_mask,
+    dim,
 ):
     tilde_e = breakdown.TildeE(coords)
     tilde_b = breakdown.TildeB(coords)
@@ -729,6 +779,7 @@ def data_flux_tilde_q(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     shift = soln_shift(
         face_mesh_velocity,
@@ -738,6 +789,7 @@ def data_flux_tilde_q(
         time,
         dim,
         parallel_conductivity,
+        ns_interior_mask,
     )
     sqrt_det_spatial_metric = soln_sqrt_det_spatial_metric(coords, time)
     spatial_metric = soln_spatial_metric(coords, time)
@@ -757,6 +809,7 @@ def data_flux_tilde_q(
             lapse,
             sqrt_det_spatial_metric,
             spatial_metric,
+            ns_interior_mask,
         ),
         lapse,
         shift,

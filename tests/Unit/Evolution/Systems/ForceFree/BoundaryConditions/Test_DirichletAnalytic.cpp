@@ -8,6 +8,7 @@
 #include "Evolution/Systems/ForceFree/BoundaryConditions/DirichletAnalytic.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryCorrections/Rusanov.hpp"
 #include "Evolution/Systems/ForceFree/System.hpp"
+#include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "Framework/SetupLocalPythonEnvironment.hpp"
 #include "Framework/TestHelpers.hpp"
 #include "Helpers/Evolution/DiscontinuousGalerkin/BoundaryConditions.hpp"
@@ -94,8 +95,9 @@ void test_solution() {
 
   const auto box_analytic_soln = db::create<db::AddSimpleTags<
       Tags::Time, Tags::AnalyticSolution<ForceFree::Solutions::FastWave>,
-      ForceFree::Tags::ParallelConductivity>>(
-      0.5, ConvertFastwave::create_container(), 100.0);
+      ForceFree::Tags::ParallelConductivity, ForceFree::Tags::NsInteriorMask>>(
+      0.5, ConvertFastwave::create_container(), 100.0,
+      std::optional<Scalar<DataVector>>{});
 
   helpers::test_boundary_condition_with_python<
       ForceFree::BoundaryConditions::DirichletAnalytic,
@@ -145,8 +147,9 @@ void test_data() {
 
   const auto box_analytic_data = db::create<db::AddSimpleTags<
       Tags::Time, Tags::AnalyticData<ForceFree::AnalyticData::FfeBreakdown>,
-      ForceFree::Tags::ParallelConductivity>>(
-      0.5, ConvertFfeBreakdown::create_container(), 100.0);
+      ForceFree::Tags::ParallelConductivity, ForceFree::Tags::NsInteriorMask>>(
+      0.5, ConvertFfeBreakdown::create_container(), 100.0,
+      std::optional<Scalar<DataVector>>{});
 
   helpers::test_boundary_condition_with_python<
       ForceFree::BoundaryConditions::DirichletAnalytic,

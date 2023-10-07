@@ -41,7 +41,7 @@ struct ComputeDriftTildeJ {
       tmpl::list<Tags::TildeQ, Tags::TildeE, Tags::TildeB,
                  Tags::ParallelConductivity, gr::Tags::Lapse<DataVector>,
                  gr::Tags::SqrtDetSpatialMetric<DataVector>,
-                 gr::Tags::SpatialMetric<DataVector, 3>>;
+                 gr::Tags::SpatialMetric<DataVector, 3>, Tags::NsInteriorMask>;
   using return_type = tnsr::I<DataVector, 3>;
 
   static void apply(
@@ -51,7 +51,8 @@ struct ComputeDriftTildeJ {
       const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
       double parallel_conductivity, const Scalar<DataVector>& lapse,
       const Scalar<DataVector>& sqrt_det_spatial_metric,
-      const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric);
+      const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+      const std::optional<Scalar<DataVector>>& neutron_star_interior_mask);
 };
 
 /*!
@@ -76,7 +77,7 @@ struct ComputeParallelTildeJ {
       tmpl::list<Tags::TildeQ, Tags::TildeE, Tags::TildeB,
                  Tags::ParallelConductivity, gr::Tags::Lapse<DataVector>,
                  gr::Tags::SqrtDetSpatialMetric<DataVector>,
-                 gr::Tags::SpatialMetric<DataVector, 3>>;
+                 gr::Tags::SpatialMetric<DataVector, 3>, Tags::NsInteriorMask>;
   using return_type = tnsr::I<DataVector, 3>;
 
   static void apply(
@@ -86,7 +87,8 @@ struct ComputeParallelTildeJ {
       const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
       double parallel_conductivity, const Scalar<DataVector>& lapse,
       const Scalar<DataVector>& sqrt_det_spatial_metric,
-      const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric);
+      const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+      const std::optional<Scalar<DataVector>>& neutron_star_interior_mask);
 };
 
 namespace Tags {
@@ -114,7 +116,7 @@ struct ComputeTildeJ : TildeJ, db::ComputeTag {
       tmpl::list<Tags::TildeQ, Tags::TildeE, Tags::TildeB,
                  Tags::ParallelConductivity, gr::Tags::Lapse<DataVector>,
                  gr::Tags::SqrtDetSpatialMetric<DataVector>,
-                 gr::Tags::SpatialMetric<DataVector, 3>>;
+                 gr::Tags::SpatialMetric<DataVector, 3>, Tags::NsInteriorMask>;
   using return_type = tnsr::I<DataVector, 3>;
   using base = TildeJ;
 
@@ -125,7 +127,8 @@ struct ComputeTildeJ : TildeJ, db::ComputeTag {
       const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
       double parallel_conductivity, const Scalar<DataVector>& lapse,
       const Scalar<DataVector>& sqrt_det_spatial_metric,
-      const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric);
+      const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+      const std::optional<Scalar<DataVector>>& neutron_star_interior_mask);
 };
 }  // namespace Tags
 

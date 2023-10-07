@@ -13,6 +13,7 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Utilities/ContainerHelpers.hpp"
+#include "Utilities/ErrorHandling/Assert.hpp"
 #include "Utilities/GenerateInstantiations.hpp"
 #include "Utilities/Gsl.hpp"
 
@@ -28,13 +29,17 @@ void tilde_j_impl(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const double parallel_conductivity, const Scalar<DataVector>& lapse,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
-    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) {
   static_assert(IncludeDriftCurrent or IncludeParallelCurrent);
+
+  const size_t num_grid_pts = get(tilde_q).size();
+  set_number_of_grid_points(tilde_j, num_grid_pts);
 
   Variables<tmpl::list<::Tags::Tempi<0, 3>, ::Tags::Tempi<1, 3>,
                        ::Tags::TempScalar<0>, ::Tags::TempScalar<1>,
                        ::Tags::TempScalar<2>>>
-      buffer{get(lapse).size()};
+      buffer{num_grid_pts};
 
   // compute one-forms of TildeE and TildeB in advance to reduce the number of
   // dot products using spatial metric (which are slower than dot products
@@ -95,6 +100,32 @@ void tilde_j_impl(
   for (size_t i = 0; i < 3; ++i) {
     (*tilde_j).get(i) *= get(lapse) / get(tilde_b_squared);
   }
+
+  // If there are grid points that needs to be masked (for enforcing the MHD
+  // condition) in the element, loop over grid points and assign a trivial value
+  // (0.0) to interior points.
+  if (neutron_star_interior_mask.has_value()) {
+    ASSERT(num_grid_pts == get(neutron_star_interior_mask.value()).size(),
+           "Mask size (" << get(neutron_star_interior_mask.value()).size()
+                         << ") does not match the number of grid points ("
+                         << num_grid_pts << ") ");
+
+    for (size_t m = 0; m < num_grid_pts; ++m) {
+      const auto& mask_value = get(*neutron_star_interior_mask)[m];
+
+      if (mask_value > 0.0) {
+        // Exterior (magnetosphere)
+        continue;
+      } else {
+        // Interior (MHD condition)
+
+        // When overwriting fields, just set to zero...
+        for (size_t d = 0; d < 3; ++d) {
+          (*tilde_j).get(d)[m] = 0.0;
+        }
+      }
+    }
+  }
 }
 
 }  // namespace
@@ -106,10 +137,11 @@ void ComputeDriftTildeJ::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const double parallel_conductivity, const Scalar<DataVector>& lapse,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
-    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
-  tilde_j_impl<true, false>(drift_tilde_j, tilde_q, tilde_e, tilde_b,
-                            parallel_conductivity, lapse,
-                            sqrt_det_spatial_metric, spatial_metric);
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) {
+  tilde_j_impl<true, false>(
+      drift_tilde_j, tilde_q, tilde_e, tilde_b, parallel_conductivity, lapse,
+      sqrt_det_spatial_metric, spatial_metric, neutron_star_interior_mask);
 }
 
 void ComputeParallelTildeJ::apply(
@@ -120,10 +152,11 @@ void ComputeParallelTildeJ::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const double parallel_conductivity, const Scalar<DataVector>& lapse,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
-    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
-  tilde_j_impl<false, true>(parallel_tilde_j, tilde_q, tilde_e, tilde_b,
-                            parallel_conductivity, lapse,
-                            sqrt_det_spatial_metric, spatial_metric);
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) {
+  tilde_j_impl<false, true>(
+      parallel_tilde_j, tilde_q, tilde_e, tilde_b, parallel_conductivity, lapse,
+      sqrt_det_spatial_metric, spatial_metric, neutron_star_interior_mask);
 }
 
 namespace Tags {
@@ -134,10 +167,11 @@ void ComputeTildeJ::function(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const double parallel_conductivity, const Scalar<DataVector>& lapse,
     const Scalar<DataVector>& sqrt_det_spatial_metric,
-    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric) {
-  tilde_j_impl<true, true>(tilde_j, tilde_q, tilde_e, tilde_b,
-                           parallel_conductivity, lapse,
-                           sqrt_det_spatial_metric, spatial_metric);
+    const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+    const std::optional<Scalar<DataVector>>& neutron_star_interior_mask) {
+  tilde_j_impl<true, true>(
+      tilde_j, tilde_q, tilde_e, tilde_b, parallel_conductivity, lapse,
+      sqrt_det_spatial_metric, spatial_metric, neutron_star_interior_mask);
 }
 }  // namespace Tags
 
