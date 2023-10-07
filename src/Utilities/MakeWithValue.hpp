@@ -118,6 +118,15 @@ struct MakeWithValueImpl<std::complex<double>, T> {
   }
 };
 
+template <typename T, typename InputType>
+struct MakeWithValueImpl<std::optional<T>, InputType> {
+  template <typename ValueType>
+  static SPECTRE_ALWAYS_INLINE std::optional<T> apply(const InputType& input,
+                                                      const ValueType value) {
+    return std::optional<T>{make_with_value<T>(input, value)};
+  }
+};
+
 /// \brief Makes a `std::array`; each element of the `std::array`
 /// must be `make_with_value`-creatable from a `InputType`.
 template <size_t Size, typename T, typename InputType>
@@ -166,8 +175,8 @@ struct NumberOfPoints<std::vector<T>> {
 
 template <typename T>
 struct NumberOfPoints<std::reference_wrapper<T>> {
-  static SPECTRE_ALWAYS_INLINE size_t apply(
-      const std::reference_wrapper<T>& input) {
+  static SPECTRE_ALWAYS_INLINE size_t
+  apply(const std::reference_wrapper<T>& input) {
     return number_of_points(input.get());
   }
 };
@@ -186,8 +195,8 @@ struct MakeWithValueImpl<tuples::TaggedTuple<Tags...>, T> {
 
 template <typename Tag, typename... Tags>
 struct NumberOfPoints<tuples::TaggedTuple<Tag, Tags...>> {
-  static SPECTRE_ALWAYS_INLINE size_t apply(
-      const tuples::TaggedTuple<Tag, Tags...>& input) {
+  static SPECTRE_ALWAYS_INLINE size_t
+  apply(const tuples::TaggedTuple<Tag, Tags...>& input) {
     const size_t points = number_of_points(tuples::get<Tag>(input));
     ASSERT((... and (number_of_points(tuples::get<Tags>(input)) == points)),
            "Inconsistent number of points in tuple entries.");
