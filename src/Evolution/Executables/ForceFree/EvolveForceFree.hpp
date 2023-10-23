@@ -117,10 +117,22 @@
 #include "ParallelAlgorithms/EventsAndTriggers/EventsAndTriggers.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/LogicalTriggers.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/Trigger.hpp"
+#include "ParallelAlgorithms/Interpolation/Actions/ElementInitInterpPoints.hpp"
+#include "ParallelAlgorithms/Interpolation/Actions/InitializeInterpolationTarget.hpp"
+#include "ParallelAlgorithms/Interpolation/Callbacks/ObserveSurfaceData.hpp"
+#include "ParallelAlgorithms/Interpolation/Callbacks/ObserveTimeSeriesOnSurface.hpp"
+#include "ParallelAlgorithms/Interpolation/Events/InterpolateWithoutInterpComponent.hpp"
+#include "ParallelAlgorithms/Interpolation/InterpolationTarget.hpp"
+#include "ParallelAlgorithms/Interpolation/Interpolator.hpp"
+#include "ParallelAlgorithms/Interpolation/PointInfoTag.hpp"
+#include "ParallelAlgorithms/Interpolation/Protocols/InterpolationTargetTag.hpp"
+#include "ParallelAlgorithms/Interpolation/Targets/Sphere.hpp"
 #include "PointwiseFunctions/AnalyticData/ForceFree/AnalyticData.hpp"
 #include "PointwiseFunctions/AnalyticData/ForceFree/Factory.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/ForceFree/Factory.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
+#include "PointwiseFunctions/GeneralRelativity/DetAndInverseSpatialMetric.hpp"
+#include "PointwiseFunctions/GeneralRelativity/Surfaces/Tags.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "PointwiseFunctions/InitialDataUtilities/InitialData.hpp"
 #include "Time/Actions/SelfStartActions.hpp"
@@ -220,6 +232,53 @@ struct EvolutionMetavars {
                          Frame::ElementLogical, Frame::Inertial>>>,
       tmpl::list<analytic_compute, error_compute>>;
 
+  struct TotalMagneticFluxOnUpperHemisphere
+      : tt::ConformsTo<intrp::protocols::InterpolationTargetTag> {
+    using temporal_id = ::Tags::Time;
+
+    using vars_to_interpolate_to_target =
+        tmpl::list<ForceFree::Tags::TildeB,
+                   //    domain::Tags::Coordinates<3, Frame::Inertial>,
+                   gr::Tags::SpatialMetric<DataVector, 3, Frame::Inertial>>;
+
+    using compute_items_on_source = tmpl::list<>;
+
+    using compute_items_on_target = tmpl::list<
+        gr::Tags::DetAndInverseSpatialMetricCompute<DataVector, 3,
+                                                    Frame::Inertial>,
+        gr::Tags::SqrtDetSpatialMetricCompute<DataVector, 3, Frame::Inertial>,
+        ylm::Tags::OneOverOneFormMagnitudeCompute<DataVector, 3,
+                                                  Frame::Inertial>,
+        ylm::Tags::UnitNormalOneFormCompute<Frame::Inertial>,
+        //
+        ForceFree::Tags::MagneticFluxCompute,
+        //
+        gr::surfaces::Tags::AreaElementCompute<Frame::Inertial>,
+        gr::surfaces::Tags::SurfaceIntegralCompute<
+            ForceFree::Tags::MagneticFlux, Frame::Inertial>>;
+
+    using compute_target_points =
+        intrp::TargetPoints::Sphere<TotalMagneticFluxOnUpperHemisphere,
+                                    ::Frame::Inertial>;
+
+    using post_interpolation_callbacks =
+        tmpl::list<intrp::callbacks::ObserveTimeSeriesOnSurface<
+            tmpl::list<gr::surfaces::Tags::SurfaceIntegral<
+                ForceFree::Tags::MagneticFlux, Frame::Inertial>>,
+            TotalMagneticFluxOnUpperHemisphere>>;
+
+    template <typename Metavariables>
+    using interpolating_component =
+        typename Metavariables::dg_element_array_component;
+  };
+
+  using interpolation_target_tags =
+      tmpl::list<TotalMagneticFluxOnUpperHemisphere>;
+
+  using interpolator_source_vars =
+      tmpl::list<ForceFree::Tags::TildeB,
+                 gr::Tags::SpatialMetric<DataVector, 3, Frame::Inertial>>;
+
   struct factory_creation
       : tt::ConformsTo<Options::protocols::FactoryCreation> {
     using factory_classes = tmpl::map<
@@ -229,6 +288,11 @@ struct EvolutionMetavars {
         tmpl::pair<DomainCreator<volume_dim>, domain_creators<volume_dim>>,
         tmpl::pair<Event,
                    tmpl::flatten<tmpl::list<
+                       // For interpolations
+                       intrp::Events::InterpolateWithoutInterpComponent<
+                           3, TotalMagneticFluxOnUpperHemisphere,
+                           interpolator_source_vars>,
+
                        Events::Completion,
                        dg::Events::field_observations<
                            volume_dim, observe_fields, non_tensor_compute_tags>,
@@ -425,13 +489,17 @@ struct EvolutionMetavars {
           ForceFree::Tags::TildeBSquaredCompute,
           ForceFree::Tags::TildeEDotTildeBCompute,
           ForceFree::Tags::ComputeTildeJ,
-          ForceFree::Tags::NsInteriorSpatialVelocityCompute<use_dg_subcell>>>,
+      ForceFree::Tags::NsInteriorSpatialVelocityCompute<use_dg_subcell>>>,
 
       Initialization::Actions::AddComputeTags<
           StepChoosers::step_chooser_compute_tags<EvolutionMetavars>>,
       ::evolution::dg::Initialization::Mortars<volume_dim>,
       evolution::dg::Initialization::Actions::SetupEqualRateRegions<
           EvolutionMetavars, volume_dim, equal_rate_regions>,
+
+      intrp::Actions::ElementInitInterpPoints<
+          intrp::Tags::InterpPointInfo<EvolutionMetavars>>,
+
       evolution::Actions::InitializeRunEventsAndDenseTriggers,
       Initialization::Actions::InitializeItems<
           evolution::dg::Initialization::SpectralFilters<
@@ -480,10 +548,13 @@ struct EvolutionMetavars {
         tmpl::map<tmpl::pair<dg_element_array_component, dg_registration_list>>;
   };
 
-  using component_list =
-      tmpl::list<observers::Observer<EvolutionMetavars>,
-                 observers::ObserverWriter<EvolutionMetavars>,
-                 dg_element_array_component>;
+  using component_list = tmpl::flatten<tmpl::list<
+      observers::Observer<EvolutionMetavars>,
+      observers::ObserverWriter<EvolutionMetavars>,
+      tmpl::transform<interpolation_target_tags,
+                      tmpl::bind<intrp::InterpolationTarget,
+                                 tmpl::pin<EvolutionMetavars>, tmpl::_1>>,
+      dg_element_array_component>>;
 
   static constexpr Options::String help{
       "Evolve the GRFFE system with divergence cleaning.\n"};

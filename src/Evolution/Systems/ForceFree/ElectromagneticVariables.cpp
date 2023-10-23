@@ -104,4 +104,21 @@ void poynting_flux(const gsl::not_null<Scalar<DataVector>*> poynting_flux,
   dot_product(poynting_flux, poynting_covector, normal_vector);
 }
 
+void magnetic_flux(
+    const gsl::not_null<Scalar<DataVector>*> magnetic_flux,
+    const tnsr::I<DataVector, 3>& tilde_b,
+    const Scalar<DataVector>& sqrt_det_spatial_metric,
+    const tnsr::I<DataVector, 3, Frame::Inertial>& cartesian_coords,
+    const tnsr::i<DataVector, 3, Frame::Inertial>& normal_one_form) {
+  dot_product(magnetic_flux, tilde_b, normal_one_form);
+  get(*magnetic_flux) /= get(sqrt_det_spatial_metric);
+
+  const size_t num_grid_pts = get(sqrt_det_spatial_metric).size();
+  for (size_t i = 0; i < num_grid_pts; ++i) {
+    if (get<2>(cartesian_coords)[i] < 0.0) {
+      get(*magnetic_flux)[i] = 0.0;
+    }
+  }
+}
+
 }  // namespace ForceFree
