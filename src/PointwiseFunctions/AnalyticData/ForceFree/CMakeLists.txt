@@ -10,6 +10,7 @@ spectre_target_sources(
   PRIVATE
   FfeBreakdown.cpp
   MagnetosphericWald.cpp
+  OrbitingBinary.cpp
   OverlappingAlfvenWaves.cpp
   RotatingDipole.cpp
   )
@@ -22,6 +23,7 @@ spectre_target_headers(
   Factory.hpp
   FfeBreakdown.hpp
   MagnetosphericWald.hpp
+  OrbitingBinary.hpp
   OverlappingAlfvenWaves.hpp
   RotatingDipole.hpp
   )
