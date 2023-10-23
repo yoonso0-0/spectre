@@ -23,13 +23,16 @@ target_link_libraries(
   ForceFreeAnalyticData
   ForceFreeSolutions
   GeneralRelativitySolutions
+  GrSurfaces
   IO
   Imex
   Informer
+  Interpolation
   Limiters
   LinearOperators
   Options
   Parallel
+  ParallelInterpolation
   PhaseControl
   Time
   Utilities
