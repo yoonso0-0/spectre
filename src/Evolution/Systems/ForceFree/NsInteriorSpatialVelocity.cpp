@@ -18,6 +18,8 @@
 #include "Utilities/PrettyType.hpp"
 #include "Utilities/TMPL.hpp"
 
+#include <iostream>
+
 namespace ForceFree::Tags {
 namespace detail {
 
@@ -67,6 +69,43 @@ void ns_spatial_velocity_impl(
                 get<2>(*ns_interior_spatial_velocity)[m] = 0.0;
               }
             }
+          } else {
+            set_everywhere_to_zero();
+          }
+        } else if constexpr (std::is_same_v<InitialData,
+                                            AnalyticData::OrbitingBinary>) {
+          // Binary simulation
+          if (neutron_star_interior_mask.has_value()) {
+            std::cout << " Mask has value " << std::endl;
+
+            const double omega_1 = initial_data_ptr->angular_velocity_one();
+            const double omega_2 = initial_data_ptr->angular_velocity_two();
+
+            const double orbital_radius = initial_data_ptr->orbital_radius();
+
+            for (size_t m = 0; m < num_grid_pts; ++m) {
+              if (get(neutron_star_interior_mask.value())[m] < 0.0) {
+                const double omega =
+                    get<0>(inertial_coords)[m] < 0.0 ? omega_1 : omega_2;
+                const double displacement_x = get<0>(inertial_coords)[m] < 0.0
+                                                  ? orbital_radius
+                                                  : -orbital_radius;
+
+                // Interior
+                // v^i = e^{ijk} Omega_j r_k
+                get<0>(*ns_interior_spatial_velocity)[m] =
+                    -omega * get<1>(inertial_coords)[m];
+                get<1>(*ns_interior_spatial_velocity)[m] =
+                    omega * (get<0>(inertial_coords)[m] + displacement_x);
+                get<2>(*ns_interior_spatial_velocity)[m] = 0.0;
+              } else {
+                // Exterior
+                get<0>(*ns_interior_spatial_velocity)[m] = 0.0;
+                get<1>(*ns_interior_spatial_velocity)[m] = 0.0;
+                get<2>(*ns_interior_spatial_velocity)[m] = 0.0;
+              }
+            }
+
           } else {
             set_everywhere_to_zero();
           }

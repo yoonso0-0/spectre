@@ -1,0 +1,240 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+Executable: EvolveForceFree
+Testing:
+  Check: parse;execute
+
+---
+
+InitialData: &InitialData
+  OrbitingBinary:
+    AngularVelocityOne: 0.1
+    AngularVelocityTwo: 0.2
+    OrbitalRadius: 1.5
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.0005
+  TimeStepper:
+    Rk3PareschiSsp4
+    # Rk3Kennedy
+  ImexMode: Implicit
+  ImexImplicitSolveTolerance: 1.0e-10
+  # TimeStepper: Rk3HesthavenSsp
+
+Observers:
+  VolumeFileName: "ForceFreeBinaryLev5Volume"
+  ReductionFileName: "ForceFreeBinaryLev5Reductions"
+  SurfaceFileName: "Surface"
+
+EvolutionSystem:
+  ForceFree:
+    ConstraintDamping:
+      KappaPsi: 1.0
+      KappaPhi: 1.0
+    ForceFreeCurrent:
+      ParallelConductivity: 1e2
+
+DomainCreator:
+  Brick:
+    LowerBound: [-5, -5, -5]
+    UpperBound: [5, 5, 5]
+    InitialRefinement: [3, 3, 3]
+    InitialGridPoints: [3, 3, 3]
+    TimeDependence: None
+    BoundaryConditionInX: &Analytic
+      DirichletAnalytic:
+        AnalyticPrescription: *InitialData
+    BoundaryConditionInY: *Analytic
+    BoundaryConditionInZ: *Analytic
+
+# DomainCreator:
+#   Sphere:
+#     InnerRadius: 0.7
+#     OuterRadius: 3.0
+#     Interior:
+#       FillWithSphericity: 0.0
+#     InitialRefinement:
+#       InnerCube: [2, 2, 2]
+#       Shell0 : [2, 2, 2]
+#       # Shell1 : [1]
+#     InitialGridPoints: 4
+#     UseEquiangularMap: true
+#     EquatorialCompression: None
+#     RadialPartitioning: []
+#     RadialDistribution: [Linear]
+#     WhichWedges: All
+#     TimeDependentMaps: None
+#     OuterBoundaryCondition:
+#       DirichletAnalytic:
+#         AnalyticPrescription: *InitialData
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Rusanov:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+    Subcell:
+      RdmpDelta0: 1.0e-1
+      RdmpEpsilon: 1.0e-1
+      PerssonExponent: 2.0
+      InitialData:
+        RdmpDelta0: 1.0e-7
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 3.0
+      AlwaysUseSubcells: false
+      SubcellToDgReconstructionMethod: DimByDim
+      UseHalo: false
+      OnlyDgBlocksAndGroups: None
+      FiniteDifferenceDerivativeOrder: 2
+    TciOptions:
+      TildeQCutoff: DoNotCheckTildeQ
+  SubcellSolver:
+    Reconstructor:
+      # MonotonisedCentral
+      Wcns5z:
+        NonlinearWeightExponent: 2
+        Epsilon: 1e-15
+        FallbackReconstructor: None
+        MaxNumberOfExtrema: 2
+
+EventsAndTriggers:
+  # - Trigger:
+  #     TimeCompares:
+  #       Comparison: GreaterThanOrEqualTo
+  #       Value: 0.06
+  #   Events:
+  #     - Completion
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [1]
+    Events:
+      - Completion
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [0]
+    Events:
+      - ChangeSlabSize:
+          DelayChange: 0
+          StepChoosers:
+            - Cfl:
+                SafetyFactor: 0.2
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 10
+          Offset: 0
+    Events:
+      - ObserveTimeStep:
+          SubfileName: time_steps
+          PrintTimeToTerminal: true
+          ObservePerCore: false
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 1
+          Offset: 0
+    Events:
+      # - TotalMagneticFluxOnSphere
+      # - TotalPoyntingFluxOnSphere
+      - ObserveFields:
+          SubfileName: VolumeData
+          VariablesToObserve: [
+              # ElectricField, MagneticField,
+              # ChargeDensity,
+              # TildeJ,
+              # ElectricCurrentDensity,
+              # ElectricFieldDotMagneticField,
+              NsInteriorSpatialVelocity,
+              # TciStatus,
+            ]
+          InterpolateToMesh: None
+          CoordinatesFloatingPointType: Float
+          FloatingPointTypes: [Float]
+  # - Trigger:
+      # Slabs:
+        # EvenlySpaced:
+          # Interval: 1
+          # Offset: 0
+    # Events:
+      # - ObserveNorms:
+          # SubfileName: ErrorNorm
+          # TensorsToObserve:
+            # - Name: TildePhi
+              # NormType: L2Norm
+              # Components: Sum
+            # - Name: TildePsi
+              # NormType: L2Norm
+              # Components: Sum
+            # - Name: ElectricFieldDotMagneticField
+            #   NormType: L2Norm
+            #   Components: Sum
+
+EventsAndDenseTriggers:
+  # - Trigger:
+  #     Times:
+  #       Specified:
+  #         Values: [0.0, 0.01, 0.02, 0.03, 0.04]
+  #   Events:
+  #     - ObserveFields:
+  #         SubfileName: VolumeData
+  #         VariablesToObserve: [
+  #           ElectricField,
+  #           MagneticField,
+  #           # ChargeDensity,
+  #           # SpatialCurrentDensity,
+  #           # TildeQ, Error(TildeQ),
+  #           # SpatialCurrentDensity,
+  #           # MagneticDivergenceCleaningField,
+  #           # ElectricDivergenceCleaningField,
+  #           ElectricFieldDotMagneticField
+  #           ]
+  #         InterpolateToMesh: None
+  #         CoordinatesFloatingPointType: Float
+  #         FloatingPointTypes: [Float]
+  #         OverrideObservationValue: None
+
+# EventsRunAtCleanup:
+#   Events:
+#     - ObserveFields:
+#         SubfileName: FailureData
+#         VariablesToObserve: [
+#             ElectricField, MagneticField,
+#             ChargeDensity,
+#             # TildeJ,
+#             ElectricCurrentDensity,
+#             ElectricFieldDotMagneticField,
+#             NsInteriorSpatialVelocity,
+#             # TciStatus,
+#           ]
+#         InterpolateToMesh: None
+#         CoordinatesFloatingPointType: Float
+#         FloatingPointTypes: [Float]
+#   ObservationValue: -1.0
+
+InterpolationTargets:
+  TotalMagneticFluxOnSphere:
+    LMax: 30
+    Radius: 2.0
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
+  PoyntingFluxOnSphere:
+    LMax: 50
+    Radius: 2.0
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
+  TotalPoyntingFluxOnSphere:
+    LMax: 50
+    Radius: 1.1
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
+
+PhaseChangeAndTriggers:
+
+ResourceInfo:
+  AvoidGlobalProc0: false
+  Singletons: Auto
