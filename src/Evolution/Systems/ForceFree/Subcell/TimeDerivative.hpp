@@ -9,6 +9,7 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataVector.hpp"
+#include "DataStructures/Index.hpp"
 #include "DataStructures/TaggedContainers.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
@@ -18,6 +19,7 @@
 #include "Evolution/DgSubcell/CartesianFluxDivergence.hpp"
 #include "Evolution/DgSubcell/ComputeBoundaryTerms.hpp"
 #include "Evolution/DgSubcell/CorrectPackagedData.hpp"
+#include "Evolution/DgSubcell/Projection.hpp"
 #include "Evolution/DgSubcell/Tags/Coordinates.hpp"
 #include "Evolution/DgSubcell/Tags/Jacobians.hpp"
 #include "Evolution/DgSubcell/Tags/Mesh.hpp"
@@ -52,7 +54,7 @@ namespace ForceFree::subcell {
  * The code makes the following unchecked assumptions:
  * - Assumes Cartesian coordinates with a diagonal Jacobian matrix
  * from the logical to the inertial frame
- * - Assumes the mesh is not moving (grid and inertial frame are the same)
+ *
  */
 struct TimeDerivative {
   template <typename DbTagsList>
@@ -60,7 +62,7 @@ struct TimeDerivative {
     using evolved_vars_tags = typename System::variables_tag::tags_list;
     using fluxes_tags = typename Fluxes::return_tags;
 
-    // The copy of Mesh is intentional to avoid a GCC-7 internal compiler error.
+    const Mesh<3>& dg_mesh = db::get<domain::Tags::Mesh<3>>(*box);
     const Mesh<3> subcell_mesh =
         db::get<evolution::dg::subcell::Tags::Mesh<3>>(*box);
     ASSERT(
@@ -81,6 +83,12 @@ struct TimeDerivative {
         db::get<evolution::Tags::BoundaryCorrection<System>>(*box);
     using derived_boundary_corrections =
         typename std::decay_t<decltype(boundary_correction)>::creatable_classes;
+
+    // Project DG mesh velocity onto subcell if needed
+    const std::optional<tnsr::I<DataVector, 3, Frame::Inertial>>&
+        dg_volume_mesh_velocity = db::get<domain::Tags::MeshVelocity<3>>(*box);
+    const std::optional<Scalar<DataVector>>& div_dg_mesh_velocity =
+        db::get<domain::Tags::DivMeshVelocity>(*box);
 
     // boundary correction terms of evolved variables on subcell interfaces
     std::array<Variables<evolved_vars_tags>, 3> fd_boundary_corrections{};
@@ -225,6 +233,60 @@ struct TimeDerivative {
             auto& vars_upper_face = gsl::at(package_data_argvars_upper_face, i);
             auto& vars_lower_face = gsl::at(package_data_argvars_lower_face, i);
 
+            // Create face-centered subcell mesh extents toward the i-th
+            // direction
+            Index<3> subcell_face_centered_mesh_extents =
+                subcell_mesh.extents();
+            ++subcell_face_centered_mesh_extents[i];
+
+            // Apply mesh velocity corrections to fluxes if needed
+            std::optional<tnsr::I<DataVector, 3, Frame::Inertial>>
+                subcell_mesh_velocity_on_faces = {};
+            if (dg_volume_mesh_velocity.has_value()) {
+              // Project mesh velocity on face mesh
+              // Can we get away with only doing the normal component? It
+              // is also used in the packaged data...
+              subcell_mesh_velocity_on_faces =
+                  tnsr::I<DataVector, 3, Frame::Inertial>{
+                      num_reconstructed_pts};
+              for (size_t j = 0; j < 3; j++) {
+                // j^th component of the velocity on the i^th directed face
+                subcell_mesh_velocity_on_faces.value().get(j) =
+                    evolution::dg::subcell::fd::project_to_faces(
+                        dg_volume_mesh_velocity.value().get(j), dg_mesh,
+                        subcell_face_centered_mesh_extents, i);
+              }
+
+              tmpl::for_each<evolved_vars_tags>(
+                  [&vars_upper_face, &vars_lower_face,
+                   &subcell_mesh_velocity_on_faces](auto tag_v) {
+                    using tag = tmpl::type_from<decltype(tag_v)>;
+                    using flux_tag =
+                        ::Tags::Flux<tag, tmpl::size_t<3>, Frame::Inertial>;
+                    using FluxTensor = typename flux_tag::type;
+                    const auto& var_upper = get<tag>(vars_upper_face);
+                    const auto& var_lower = get<tag>(vars_lower_face);
+                    auto& flux_upper = get<flux_tag>(vars_upper_face);
+                    auto& flux_lower = get<flux_tag>(vars_lower_face);
+                    for (size_t storage_index = 0;
+                         storage_index < var_upper.size(); ++storage_index) {
+                      const auto tensor_index =
+                          var_upper.get_tensor_index(storage_index);
+                      for (size_t j = 0; j < 3; j++) {
+                        const auto flux_storage_index =
+                            FluxTensor::get_storage_index(
+                                prepend(tensor_index, j));
+                        flux_upper[flux_storage_index] -=
+                            subcell_mesh_velocity_on_faces.value().get(j) *
+                            var_upper[storage_index];
+                        flux_lower[flux_storage_index] -=
+                            subcell_mesh_velocity_on_faces.value().get(j) *
+                            var_lower[storage_index];
+                      }
+                    }
+                  });
+            }
+
             // Normal vectors in curved spacetime normalized by inverse
             // spatial metric. Since we assume a Cartesian grid, this is
             // relatively easy. Note that we use the sign convention on
@@ -259,13 +321,15 @@ struct TimeDerivative {
             evolution::dg::Actions::detail::dg_package_data<System>(
                 make_not_null(&upper_packaged_data),
                 dynamic_cast<const DerivedCorrection&>(boundary_correction),
-                vars_upper_face, upper_outward_conormal, {std::nullopt}, *box,
+                vars_upper_face, upper_outward_conormal,
+                subcell_mesh_velocity_on_faces, *box,
                 typename DerivedCorrection::dg_package_data_volume_tags{},
                 dg_package_data_projected_tags{});
             evolution::dg::Actions::detail::dg_package_data<System>(
                 make_not_null(&lower_packaged_data),
                 dynamic_cast<const DerivedCorrection&>(boundary_correction),
-                vars_lower_face, lower_outward_conormal, {std::nullopt}, *box,
+                vars_lower_face, lower_outward_conormal,
+                subcell_mesh_velocity_on_faces, *box,
                 typename DerivedCorrection::dg_package_data_volume_tags{},
                 dg_package_data_projected_tags{});
 
@@ -326,6 +390,37 @@ struct TimeDerivative {
     using source_arg_tags = Sources::argument_tags;
     sources_impl(dt_vars_ptr, *box, source_tags{}, source_arg_tags{});
 
+    // Zero the dt(U) for variables that do not have a source term. This is
+    // necessary to avoid `+=` to a `NaN` (debug mode) or random garbage
+    // (release mode) when adding mesh corrections below.
+    tmpl::for_each<evolved_vars_tags>([&dt_vars_ptr](auto tag_v) {
+      using tag = tmpl::type_from<decltype(tag_v)>;
+      auto& dt_var = get<::Tags::dt<tag>>(*dt_vars_ptr);
+      for (size_t i = 0; i < dt_var.size(); ++i) {
+        if constexpr (not tmpl::list_contains_v<source_tags, tag>) {
+          dt_var[i] = 0.0;
+        }
+      }
+    });
+
+    // Apply mesh velocity corrections to source terms if needed
+    if (div_dg_mesh_velocity.has_value()) {
+      const DataVector div_subcell_mesh_velocity =
+          evolution::dg::subcell::fd::project(
+              div_dg_mesh_velocity.value().get(), dg_mesh,
+              subcell_mesh.extents());
+      tmpl::for_each<evolved_vars_tags>(
+          [&dt_vars_ptr, &div_subcell_mesh_velocity,
+           &evolved_vars = db::get<variables_tag>(*box)](auto tag_v) {
+            using tag = tmpl::type_from<decltype(tag_v)>;
+            auto& dt_var = get<::Tags::dt<tag>>(*dt_vars_ptr);
+            const auto& U = get<tag>(evolved_vars);
+            for (size_t i = 0; i < dt_var.size(); ++i) {
+              dt_var[i] -= div_subcell_mesh_velocity * U[i];
+            }
+          });
+    }
+
     const auto& cell_centered_logical_to_grid_inv_jacobian = db::get<
         evolution::dg::subcell::fd::Tags::InverseJacobianLogicalToGrid<3>>(
         *box);
@@ -346,14 +441,6 @@ struct TimeDerivative {
             const auto& var_correction =
                 get<evolved_var_tag>(boundary_correction_in_axis);
             for (size_t i = 0; i < dt_var.size(); ++i) {
-              if constexpr (not tmpl::list_contains_v<source_tags,
-                                                      evolved_var_tag>) {
-                // Zero the ForceFree tags that don't have sources.
-                if (dim == 0) {
-                  dt_var[i] = 0.0;
-                }
-              }
-
               evolution::dg::subcell::add_cartesian_flux_divergence(
                   make_not_null(&dt_var[i]), inverse_delta,
                   component_inverse_jacobian, var_correction[i],

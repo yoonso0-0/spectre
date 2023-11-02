@@ -32,6 +32,11 @@ namespace ForceFree::subcell {
  * However, in practice such strict conservation doesn't seem to be necessary
  * and can be explained by that we only need strict conservation at shocks, and
  * if one element is doing DG, then we aren't at a shock.
+ *
+ * Developer note (copied from Nils's comment from GhMhd): For performance
+ * reasons We should consider storing the mesh velocity on the faces instead of
+ * re-slicing/projecting.
+ *
  */
 struct NeighborPackagedData {
   static DirectionalIdMap<3, DataVector> apply(
