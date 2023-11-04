@@ -504,11 +504,6 @@ void SolveImplicitSector<SystemVariablesTag, ImplicitSector>::apply_impl(
         case Mode::Implicit: {
           const size_t max_iterations = 100;
           try {
-            pointwise_vars_array = RootFinder::gsl_multiroot(
-                solver, initial_guess,
-                RootFinder::StoppingConditions::Residual(
-                    implicit_solve_tolerance),
-                max_iterations);
             // FIXME : If solver fails frequently, try `Hybrid` or `Hybrids`
             // method, or set max absolute tolerance to be positive finite value
             // (1e-10)
@@ -528,18 +523,28 @@ void SolveImplicitSector<SystemVariablesTag, ImplicitSector>::apply_impl(
             // const double max_abs_tolerance = 0.0;
             // const size_t max_iterations = 100;
             // const double residual_tolerance = 1.0e-10;
-            // const double convergence_relative_tolerance = 1.0e-10;
-            // const double convergence_absolute_tolerance = 1.0e-10;
+            const double convergence_relative_tolerance =
+                implicit_solve_tolerance;
+            const double convergence_absolute_tolerance =
+                implicit_solve_tolerance;
             // Use relative convergence as stopping criteria
+
             // pointwise_vars_array = RootFinder::gsl_multiroot(
-            //     solver, solver.initial_guess(),
-            //     //
-            //     RootFinder::StoppingConditions::Residual(residual_tolerance),
-            //     RootFinder::StoppingConditions::Convergence(
-            //         convergence_absolute_tolerance,
-            //         convergence_relative_tolerance),
-            //     max_iterations, Verbosity::Silent, max_abs_tolerance,
-            //     RootFinder::Method::Newton);
+            // solver, initial_guess,
+            // RootFinder::StoppingConditions::Residual(
+            // implicit_solve_tolerance),
+            // max_iterations);
+
+            pointwise_vars_array = RootFinder::gsl_multiroot(
+                solver, initial_guess,
+                //
+                // RootFinder::StoppingConditions::Residual(residual_tolerance),
+                RootFinder::StoppingConditions::Convergence(
+                    convergence_absolute_tolerance,
+                    convergence_relative_tolerance),
+                max_iterations);
+            // Verbosity::Silent, max_abs_tolerance,
+            // RootFinder::Method::Newton
 
           } catch (const convergence_error&) {
             if constexpr (have_fallback) {
