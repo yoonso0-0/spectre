@@ -272,11 +272,57 @@ struct EvolutionMetavars {
         typename Metavariables::dg_element_array_component;
   };
 
-  using interpolation_target_tags =
-      tmpl::list<TotalMagneticFluxOnUpperHemisphere>;
+  // Observe Poynting flux S^in_i  on a sphere (used for Pulsar tests)
+  struct PoyntingFluxOnSphere
+      : tt::ConformsTo<intrp::protocols::InterpolationTargetTag> {
+    using temporal_id = ::Tags::Time;
 
-  using interpolator_source_vars =
+    using vars_to_interpolate_to_target =
+        tmpl::list<ForceFree::Tags::TildeE, ForceFree::Tags::TildeB,
+                   gr::Tags::SpatialMetric<DataVector, 3, Frame::Inertial>>;
+
+    using compute_items_on_source = tmpl::list<>;
+
+    using compute_items_on_target = tmpl::list<
+        gr::Tags::DetAndInverseSpatialMetricCompute<DataVector, 3,
+                                                    Frame::Inertial>,
+        gr::Tags::SqrtDetSpatialMetricCompute<DataVector, 3, Frame::Inertial>,
+        ylm::Tags::OneOverOneFormMagnitudeCompute<DataVector, 3,
+                                                  Frame::Inertial>,
+        ylm::Tags::UnitNormalOneFormCompute<Frame::Inertial>,
+        ylm::Tags::UnitNormalVectorCompute<Frame::Inertial>,
+        ForceFree::Tags::PoyntingCovectorCompute,
+        ForceFree::Tags::PoyntingFluxCompute,
+        gr::surfaces::Tags::AreaElementCompute<Frame::Inertial>,
+        gr::surfaces::Tags::SurfaceIntegralCompute<
+            ForceFree::Tags::PoyntingFlux, Frame::Inertial>>;
+
+    using compute_target_points =
+        intrp::TargetPoints::Sphere<PoyntingFluxOnSphere, ::Frame::Inertial>;
+
+    using post_interpolation_callbacks =
+        tmpl::list<intrp::callbacks::ObserveSurfaceData<
+                       tmpl::list<ForceFree::Tags::PoyntingFlux>,
+                       PoyntingFluxOnSphere, ::Frame::Inertial>,
+                   intrp::callbacks::ObserveTimeSeriesOnSurface<
+                       tmpl::list<gr::surfaces::Tags::SurfaceIntegral<
+                           ForceFree::Tags::PoyntingFlux, Frame::Inertial>>,
+                       PoyntingFluxOnSphere>>;
+
+    template <typename Metavariables>
+    using interpolating_component =
+        typename Metavariables::dg_element_array_component;
+  };
+
+  using interpolation_target_tags =
+      tmpl::list<TotalMagneticFluxOnUpperHemisphere, PoyntingFluxOnSphere>;
+
+  using total_magnetic_flux_interpolator_source_vars =
       tmpl::list<ForceFree::Tags::TildeB,
+                 gr::Tags::SpatialMetric<DataVector, 3, Frame::Inertial>>;
+
+  using poynting_flux_interpolator_source_vars =
+      tmpl::list<ForceFree::Tags::TildeE, ForceFree::Tags::TildeB,
                  gr::Tags::SpatialMetric<DataVector, 3, Frame::Inertial>>;
 
   struct factory_creation
@@ -291,7 +337,10 @@ struct EvolutionMetavars {
                        // For interpolations
                        intrp::Events::InterpolateWithoutInterpComponent<
                            3, TotalMagneticFluxOnUpperHemisphere,
-                           interpolator_source_vars>,
+                           total_magnetic_flux_interpolator_source_vars>,
+                       intrp::Events::InterpolateWithoutInterpComponent<
+                           3, PoyntingFluxOnSphere,
+                           poynting_flux_interpolator_source_vars>,
 
                        Events::Completion,
                        dg::Events::field_observations<
