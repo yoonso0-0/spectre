@@ -9,9 +9,14 @@
 
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Domain/BoundaryConditions/BoundaryCondition.hpp"
+#include "Domain/CoordinateMaps/Tags.hpp"
+#include "Domain/FunctionsOfTime/FunctionOfTime.hpp"
+#include "Domain/FunctionsOfTime/Tags.hpp"
 #include "Domain/Tags.hpp"
 #include "Evolution/BoundaryConditions/Type.hpp"
+#include "Evolution/DgSubcell/Tags/Mesh.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryConditions/BoundaryCondition.hpp"
+#include "Evolution/Systems/ForceFree/FiniteDifference/Tags.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "Options/String.hpp"
 #include "PointwiseFunctions/InitialDataUtilities/InitialData.hpp"
@@ -106,6 +111,43 @@ class DirichletAnalytic final : public BoundaryCondition {
       [[maybe_unused]] const double time, const double parallel_conductivity,
       const std::optional<Scalar<DataVector>>& neutron_star_interior_mask)
       const;
+
+  using fd_interior_evolved_variables_tags = tmpl::list<>;
+  using fd_interior_temporary_tags =
+      tmpl::list<evolution::dg::subcell::Tags::Mesh<3>>;
+  using fd_gridless_tags =
+      tmpl::list<Tags::ParallelConductivity, Tags::NsInteriorMask, ::Tags::Time,
+                 ::domain::Tags::FunctionsOfTime,
+                 domain::Tags::ElementMap<3, Frame::Grid>,
+                 domain::CoordinateMaps::Tags::CoordinateMap<3, Frame::Grid,
+                                                             Frame::Inertial>,
+                 fd::Tags::Reconstructor>;
+
+  void fd_ghost(
+      gsl::not_null<tnsr::I<DataVector, 3, Frame::Inertial>*> tilde_j,
+      gsl::not_null<tnsr::I<DataVector, 3, Frame::Inertial>*> tilde_e,
+      gsl::not_null<tnsr::I<DataVector, 3, Frame::Inertial>*> tilde_b,
+      gsl::not_null<Scalar<DataVector>*> tilde_psi,
+      gsl::not_null<Scalar<DataVector>*> tilde_phi,
+      gsl::not_null<Scalar<DataVector>*> tilde_q,
+
+      const Direction<3>& direction,
+
+      // fd_interior_temporary_tags
+      const Mesh<3> subcell_mesh,
+
+      // fd_gridless_tags
+      double parallel_conductivity,
+      const std::optional<Scalar<DataVector>> neutron_star_interior_mask,
+      double time,
+      const std::unordered_map<
+          std::string,
+          std::unique_ptr<domain::FunctionsOfTime::FunctionOfTime>>&
+          functions_of_time,
+      const ElementMap<3, Frame::Grid>& logical_to_grid_map,
+      const domain::CoordinateMapBase<Frame::Grid, Frame::Inertial, 3>&
+          grid_to_inertial_map,
+      const fd::Reconstructor& reconstructor) const;
 
  private:
   std::unique_ptr<evolution::initial_data::InitialData> analytic_prescription_;
