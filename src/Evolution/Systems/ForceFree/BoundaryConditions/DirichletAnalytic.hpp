@@ -7,6 +7,8 @@
 #include <optional>
 #include <pup.h>
 
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
+#include "DataStructures/DataBox/Prefixes.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Domain/BoundaryConditions/BoundaryCondition.hpp"
 #include "Domain/CoordinateMaps/Tags.hpp"
@@ -17,6 +19,7 @@
 #include "Evolution/DgSubcell/Tags/Mesh.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryConditions/BoundaryCondition.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Tags.hpp"
+#include "Evolution/Systems/ForceFree/System.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "Options/String.hpp"
 #include "PointwiseFunctions/InitialDataUtilities/InitialData.hpp"
@@ -35,6 +38,10 @@ namespace ForceFree::BoundaryConditions {
  * analytic data.
  */
 class DirichletAnalytic final : public BoundaryCondition {
+ private:
+  template <typename T>
+  using Flux = ::Tags::Flux<T, tmpl::size_t<3>, Frame::Inertial>;
+
  public:
   /// \brief What analytic solution/data to prescribe.
   struct AnalyticPrescription {
@@ -130,6 +137,10 @@ class DirichletAnalytic final : public BoundaryCondition {
       gsl::not_null<Scalar<DataVector>*> tilde_psi,
       gsl::not_null<Scalar<DataVector>*> tilde_phi,
       gsl::not_null<Scalar<DataVector>*> tilde_q,
+
+      gsl::not_null<std::optional<Variables<
+          db::wrap_tags_in<Flux, typename ForceFree::System::flux_variables>>>*>
+          cell_centered_ghost_fluxes,
 
       const Direction<3>& direction,
 
