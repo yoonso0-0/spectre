@@ -23,8 +23,6 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TaggedTuple.hpp"
 
-#include <iostream>
-
 namespace ForceFree::BoundaryConditions {
 
 DirichletAnalytic::DirichletAnalytic(const DirichletAnalytic& rhs)
@@ -172,6 +170,10 @@ void DirichletAnalytic::fd_ghost(
     const gsl::not_null<Scalar<DataVector>*> tilde_phi,
     const gsl::not_null<Scalar<DataVector>*> tilde_q,
 
+    const gsl::not_null<std::optional<Variables<
+        db::wrap_tags_in<Flux, typename ForceFree::System::flux_variables>>>*>
+        cell_centered_ghost_fluxes,
+
     const Direction<3>& direction,
 
     // fd_interior_temporary_tags
@@ -202,8 +204,10 @@ void DirichletAnalytic::fd_ghost(
       tuples::TaggedTuple<Tags::TildeE, Tags::TildeB, Tags::TildePsi,
                           Tags::TildePhi, Tags::TildeQ,
                           gr::Tags::Lapse<DataVector>,
+                          gr::Tags::Shift<DataVector, 3>,
                           gr::Tags::SqrtDetSpatialMetric<DataVector>,
-                          gr::Tags::SpatialMetric<DataVector, 3>>,
+                          gr::Tags::SpatialMetric<DataVector, 3>,
+                          gr::Tags::InverseSpatialMetric<DataVector, 3>>,
       tmpl::append<ForceFree::Solutions::all_solutions,
                    ForceFree::AnalyticData::all_data>>(
       analytic_prescription_.get(),
@@ -216,8 +220,10 @@ void DirichletAnalytic::fd_ghost(
               tmpl::list<Tags::TildeE, Tags::TildeB, Tags::TildePsi,
                          Tags::TildePhi, Tags::TildeQ,
                          gr::Tags::Lapse<DataVector>,
+                         gr::Tags::Shift<DataVector, 3>,
                          gr::Tags::SqrtDetSpatialMetric<DataVector>,
-                         gr::Tags::SpatialMetric<DataVector, 3>>{});
+                         gr::Tags::SpatialMetric<DataVector, 3>,
+                         gr::Tags::InverseSpatialMetric<DataVector, 3>>{});
         } else {
           (void)time;
           return analytic_solution_or_data->variables(
@@ -225,8 +231,10 @@ void DirichletAnalytic::fd_ghost(
               tmpl::list<Tags::TildeE, Tags::TildeB, Tags::TildePsi,
                          Tags::TildePhi, Tags::TildeQ,
                          gr::Tags::Lapse<DataVector>,
+                         gr::Tags::Shift<DataVector, 3>,
                          gr::Tags::SqrtDetSpatialMetric<DataVector>,
-                         gr::Tags::SpatialMetric<DataVector, 3>>{});
+                         gr::Tags::SpatialMetric<DataVector, 3>,
+                         gr::Tags::InverseSpatialMetric<DataVector, 3>>{});
         }
       });
 
@@ -254,6 +262,24 @@ void DirichletAnalytic::fd_ghost(
                                 parallel_conductivity, lapse,
                                 sqrt_det_spatial_metric, spatial_metric,
                                 std::optional<Scalar<DataVector>>{});
+
+  if (cell_centered_ghost_fluxes->has_value()) {
+    Fluxes::apply(
+        make_not_null(
+            &get<Flux<Tags::TildeE>>(cell_centered_ghost_fluxes->value())),
+        make_not_null(
+            &get<Flux<Tags::TildeB>>(cell_centered_ghost_fluxes->value())),
+        make_not_null(
+            &get<Flux<Tags::TildePsi>>(cell_centered_ghost_fluxes->value())),
+        make_not_null(
+            &get<Flux<Tags::TildePhi>>(cell_centered_ghost_fluxes->value())),
+        make_not_null(
+            &get<Flux<Tags::TildeQ>>(cell_centered_ghost_fluxes->value())),
+        *tilde_e, *tilde_b, *tilde_psi, *tilde_phi, *tilde_q, *tilde_j, lapse,
+        get<gr::Tags::Shift<DataVector, 3>>(fd_ghost_values),
+        sqrt_det_spatial_metric, spatial_metric,
+        get<gr::Tags::InverseSpatialMetric<DataVector, 3>>(fd_ghost_values));
+  }
 }
 
 }  // namespace ForceFree::BoundaryConditions
