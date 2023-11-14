@@ -69,6 +69,7 @@
 #include "Evolution/Systems/ForceFree/FiniteDifference/Factory.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Reconstructor.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Tags.hpp"
+#include "Evolution/Systems/ForceFree/Fluxes.hpp"
 #include "Evolution/Systems/ForceFree/ImposeMhdConditionInsideNs.hpp"
 #include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
 #include "Evolution/Systems/ForceFree/NsInteriorSpatialVelocity.hpp"
@@ -438,6 +439,11 @@ struct EvolutionMetavars {
       Actions::MutateApply<ChangeStepSize<tmpl::list<>>>,
       Actions::MutateApply<evolution::dg::subcell::BackgroundGrVars<
           system, EvolutionMetavars, false>>,
+
+      // cell-centered flux
+      Actions::MutateApply<evolution::dg::subcell::fd::CellCenteredFlux<
+          system, ForceFree::Fluxes, volume_dim, false>>,
+
       evolution::dg::subcell::Actions::SendDataForReconstruction<
           volume_dim, ForceFree::subcell::GhostVariables,
           use_dg_element_collection>,
@@ -448,6 +454,13 @@ struct EvolutionMetavars {
           system, EvolutionMetavars, true>>,
       Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
       Actions::MutateApply<ForceFree::subcell::SwapMask>,
+
+      // cell-centered flux
+      Actions::MutateApply<evolution::dg::subcell::fd::CellCenteredFlux<
+          system, ForceFree::Fluxes, volume_dim, true>>,
+
+      //
+
       evolution::dg::subcell::fd::Actions::TakeTimeStep<
           ForceFree::subcell::TimeDerivative>,
       Actions::MutateApply<RecordTimeStepperData<system>>,
