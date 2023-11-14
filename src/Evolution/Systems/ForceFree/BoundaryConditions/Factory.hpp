@@ -14,7 +14,9 @@
 namespace ForceFree::BoundaryConditions {
 /// Typelist of standard BoundaryConditions
 using standard_boundary_conditions =
+    // tmpl::list<domain::BoundaryConditions::Periodic<BoundaryCondition>,
+    //    CopyFields, DemandOutgoingCharSpeeds, DirichletAnalytic,
+    //    Nonreflecting>;
     tmpl::list<domain::BoundaryConditions::Periodic<BoundaryCondition>,
-               CopyFields, DemandOutgoingCharSpeeds, DirichletAnalytic,
-               Nonreflecting>;
+               DirichletAnalytic>;
 }  // namespace ForceFree::BoundaryConditions
