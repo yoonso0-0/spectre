@@ -102,6 +102,13 @@ void BoundaryConditionGhostData::apply(
             tmpl::type_from<decltype(tag)>::type::size();
       });
 
+  using flux_variables = typename ForceFree::System::flux_variables;
+  const bool compute_cell_centered_flux =
+      db::get<
+          evolution::dg::subcell::Tags::CellCenteredFlux<flux_variables, 3>>(
+          *box)
+          .has_value();
+
   for (const auto& direction : element.external_boundaries()) {
     const auto& boundary_condition_at_direction =
         *external_boundary_condition.at(direction);
@@ -119,12 +126,32 @@ void BoundaryConditionGhostData::apply(
                                      ElementId<3>::external_boundary_id()};
 
     all_ghost_data[mortar_id] = evolution::dg::subcell::GhostData{1};
+
+    using FluxVars =
+        Variables<db::wrap_tags_in<::Tags::Flux, flux_variables,
+                                   tmpl::size_t<3>, Frame::Inertial>>;
+    const size_t fluxes_size =
+        (compute_cell_centered_flux ? FluxVars::number_of_independent_components
+                                    : 0) *
+        ghost_zone_size * num_face_pts;
+    const size_t evolved_vars_size =
+        num_reconstructed_tensor_components * ghost_zone_size * num_face_pts;
+
     DataVector& boundary_ghost_data =
         all_ghost_data.at(mortar_id).neighbor_ghost_data_for_reconstruction();
-    boundary_ghost_data.destructive_resize(num_reconstructed_tensor_components *
-                                           ghost_zone_size * num_face_pts);
+    boundary_ghost_data.destructive_resize(evolved_vars_size + fluxes_size);
+
     Variables<ForceFree::fd::tags_list_for_reconstruction> ghost_data_vars{
-        boundary_ghost_data.data(), boundary_ghost_data.size()};
+        boundary_ghost_data.data(), evolved_vars_size};
+
+    std::optional<FluxVars> cell_centered_ghost_fluxes{};
+    if (compute_cell_centered_flux) {
+      cell_centered_ghost_fluxes = FluxVars{};
+      cell_centered_ghost_fluxes.value().set_data_ref(
+          std::next(boundary_ghost_data.data(),
+                    static_cast<std::ptrdiff_t>(evolved_vars_size)),
+          fluxes_size);
+    }
 
     // We don't need to care about boundary ghost data when using the periodic
     // condition, so exclude it from the type list
@@ -141,7 +168,8 @@ void BoundaryConditionGhostData::apply(
     // Now apply subcell boundary conditions
     call_with_dynamic_type<void, derived_boundary_conditions_for_subcell>(
         &boundary_condition_at_direction,
-        [&box, &direction, &ghost_data_vars](const auto* boundary_condition) {
+        [&box, &cell_centered_ghost_fluxes, &direction,
+         &ghost_data_vars](const auto* boundary_condition) {
           using BoundaryCondition = std::decay_t<decltype(*boundary_condition)>;
           using bcondition_interior_evolved_vars_tags =
               typename BoundaryCondition::fd_interior_evolved_variables_tags;
@@ -158,7 +186,7 @@ void BoundaryConditionGhostData::apply(
           if constexpr (BoundaryCondition::bc_type ==
                         evolution::BoundaryConditions::Type::Ghost) {
             const auto apply_fd_ghost =
-                [&boundary_condition, &direction,
+                [&boundary_condition, &cell_centered_ghost_fluxes, &direction,
                  &ghost_data_vars](const auto&... boundary_ghost_data_args) {
                   (*boundary_condition)
                       .fd_ghost(
@@ -174,6 +202,9 @@ void BoundaryConditionGhostData::apply(
                               &get<ForceFree::Tags::TildePhi>(ghost_data_vars)),
                           make_not_null(
                               &get<ForceFree::Tags::TildeQ>(ghost_data_vars)),
+
+                          make_not_null(&cell_centered_ghost_fluxes),
+
                           direction, boundary_ghost_data_args...);
                 };
             apply_subcell_boundary_condition_impl(apply_fd_ghost, box,
