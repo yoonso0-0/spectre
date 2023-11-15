@@ -18,5 +18,5 @@ using standard_boundary_conditions =
     //    CopyFields, DemandOutgoingCharSpeeds, DirichletAnalytic,
     //    Nonreflecting>;
     tmpl::list<domain::BoundaryConditions::Periodic<BoundaryCondition>,
-               DemandOutgoingCharSpeeds, DirichletAnalytic>;
+               DemandOutgoingCharSpeeds, DirichletAnalytic, Nonreflecting>;
 }  // namespace ForceFree::BoundaryConditions
