@@ -81,7 +81,8 @@ class Nonreflecting final : public BoundaryCondition {
   void pup(PUP::er& p) override;
 
   using dg_interior_evolved_variables_tags = tmpl::list<TildeE, TildeB, TildeQ>;
-  using dg_interior_temporary_tags = tmpl::list<Lapse, Shift, InvSpatialMetric>;
+  using dg_interior_temporary_tags =
+      tmpl::list<Lapse, Shift, InvSpatialMetric>;
   using dg_gridless_tags = tmpl::list<Tags::ParallelConductivity>;
 
   static std::optional<std::string> dg_ghost(
@@ -126,7 +127,7 @@ class Nonreflecting final : public BoundaryCondition {
 
   using fd_interior_evolved_variables_tags = tmpl::list<TildeE, TildeB, TildeQ>;
   using fd_interior_temporary_tags = tmpl::list<
-      Lapse, Shift, InvSpatialMetric,
+      TildeJ, Lapse, Shift, InvSpatialMetric,
       domain::Tags::InverseJacobian<3, Frame::ElementLogical, Frame::Inertial>,
       domain::Tags::Mesh<3>, evolution::dg::subcell::Tags::Mesh<3>>;
   using fd_gridless_tags =
@@ -152,6 +153,7 @@ class Nonreflecting final : public BoundaryCondition {
       const Scalar<DataVector>& interior_tilde_q,
 
       // fd_interior_temporary_tags
+      const tnsr::I<DataVector, 3, Frame::Inertial>& volume_tilde_j,
       const Scalar<DataVector>& volume_lapse,
       const tnsr::I<DataVector, 3, Frame::Inertial>& volume_shift,
       const tnsr::II<DataVector, 3, Frame::Inertial>&
