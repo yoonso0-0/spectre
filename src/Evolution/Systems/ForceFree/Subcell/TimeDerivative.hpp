@@ -97,6 +97,14 @@ struct TimeDerivative {
     const std::optional<Scalar<DataVector>>& div_dg_mesh_velocity =
         db::get<domain::Tags::DivMeshVelocity>(*box);
 
+    // Inverse jacobian, to be projected on faces
+    const auto& inv_jacobian_dg =
+        db::get<domain::Tags::InverseJacobian<3, Frame::ElementLogical,
+                                              Frame::Inertial>>(*box);
+    const auto& det_inv_jacobian_dg = db::get<
+        domain::Tags::DetInvJacobian<Frame::ElementLogical, Frame::Inertial>>(
+        *box);
+
     // boundary correction terms of evolved variables on subcell interfaces
     std::array<Variables<evolved_vars_tags>, 3> fd_boundary_corrections{};
 
@@ -326,18 +334,37 @@ struct TimeDerivative {
             // NormalCovectorAndMagnitude tag in the DataBox right now to avoid
             // conflicts with the DG solver. We can explore in the future if
             // it's possible to reuse that allocation.
-            const Scalar<DataVector> normalization{
-                sqrt(get<gr::Tags::InverseSpatialMetric<
-                         DataVector, 3, Frame::Inertial>>(vars_upper_face)
-                         .get(i, i))};
-
+            //
+            // The unnormalized normal vector is
+            // n_j = d \xi^{\hat i}/dx^j
+            // with "i" the current face.
             tnsr::i<DataVector, 3, Frame::Inertial> lower_outward_conormal{
                 num_reconstructed_pts, 0.0};
-            lower_outward_conormal.get(i) = 1.0 / get(normalization);
+            for (size_t j = 0; j < 3; j++) {
+              lower_outward_conormal.get(j) =
+                  evolution::dg::subcell::fd::project_to_faces(
+                      inv_jacobian_dg.get(i, j), dg_mesh,
+                      subcell_face_centered_mesh_extents, i);
+            }
+            const auto det_inv_jacobian_face =
+                evolution::dg::subcell::fd::project_to_faces(
+                    get(det_inv_jacobian_dg), dg_mesh,
+                    subcell_face_centered_mesh_extents, i);
+
+            const Scalar<DataVector> normalization{sqrt(get(
+                dot_product(lower_outward_conormal, lower_outward_conormal,
+                            get<gr::Tags::InverseSpatialMetric<DataVector, 3>>(
+                                vars_upper_face))))};
+            for (size_t j = 0; j < 3; j++) {
+              lower_outward_conormal.get(j) =
+                  lower_outward_conormal.get(j) / get(normalization);
+            }
 
             tnsr::i<DataVector, 3, Frame::Inertial> upper_outward_conormal{
                 num_reconstructed_pts, 0.0};
-            upper_outward_conormal.get(i) = -lower_outward_conormal.get(i);
+            for (size_t j = 0; j < 3; j++) {
+              upper_outward_conormal.get(j) = -lower_outward_conormal.get(j);
+            }
             // Note: we probably should compute the normal vector in addition to
             // the co-vector. Not a huge issue since we'll get an FPE right now
             // if it's used by a Riemann solver.
@@ -385,6 +412,9 @@ struct TimeDerivative {
                 upper_packaged_data, lower_packaged_data);
             // We need to multiply by the normal vector normalization
             gsl::at(fd_boundary_corrections, i) *= get(normalization);
+            // Also multiply by determinant of Jacobian, following Eq.(34)
+            // of 2109.11645
+            gsl::at(fd_boundary_corrections, i) *= 1.0 / det_inv_jacobian_face;
           }
         });
 
@@ -463,20 +493,22 @@ struct TimeDerivative {
         reconstruction_order.value_or(
             std::array<gsl::span<std::uint8_t>, 3>{}));
 
-    const auto& cell_centered_logical_to_grid_inv_jacobian = db::get<
-        evolution::dg::subcell::fd::Tags::InverseJacobianLogicalToGrid<3>>(
-        *box);
+    // const auto& cell_centered_logical_to_grid_inv_jacobian = db::get<
+    // evolution::dg::subcell::fd::Tags::InverseJacobianLogicalToGrid<3>>(
+    // *box);
+
     for (size_t dim = 0; dim < 3; ++dim) {
       const auto& boundary_correction_in_axis =
           high_order_corrections.has_value()
               ? gsl::at(high_order_corrections.value(), dim)
               : gsl::at(fd_boundary_corrections, dim);
-      const auto& component_inverse_jacobian =
-          cell_centered_logical_to_grid_inv_jacobian.get(dim, dim);
+      const auto& cell_centered_det_inv_jacobian =
+          db::get<evolution::dg::subcell::fd::Tags::
+                      DetInverseJacobianLogicalToInertial>(*box);
       const double inverse_delta = gsl::at(one_over_delta_xi, dim);
       tmpl::for_each<typename variables_tag::tags_list>(
           [&dt_vars_ptr, &boundary_correction_in_axis,
-           &component_inverse_jacobian, dim, inverse_delta,
+           &cell_centered_det_inv_jacobian, dim, inverse_delta,
            &subcell_mesh](auto evolved_var_tag_v) {
             using evolved_var_tag =
                 tmpl::type_from<decltype(evolved_var_tag_v)>;
@@ -487,7 +519,7 @@ struct TimeDerivative {
             for (size_t i = 0; i < dt_var.size(); ++i) {
               evolution::dg::subcell::add_cartesian_flux_divergence(
                   make_not_null(&dt_var[i]), inverse_delta,
-                  component_inverse_jacobian, var_correction[i],
+                  get(cell_centered_det_inv_jacobian), var_correction[i],
                   subcell_mesh.extents(), dim);
             }
           });
