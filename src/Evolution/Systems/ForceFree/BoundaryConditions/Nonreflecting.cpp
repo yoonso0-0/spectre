@@ -144,23 +144,23 @@ std::optional<std::string> Nonreflecting::dg_ghost(
   get(*tilde_phi) = 0.0;
 
   // Charge drift mode
-  auto& tilde_e_cross_tilde_b = get<::Tags::TempI<3, 3>>(temp_buffer);
-  for (LeviCivitaIterator<3> it; it; ++it) {
-    const auto& i = it[0];
-    const auto& j = it[1];
-    const auto& k = it[2];
-    tilde_e_cross_tilde_b.get(i) +=
-        it.sign() * interior_tilde_e.get(j) * interior_tilde_b.get(k);
-  }
-  auto& normal_dot_tilde_e_cross_tilde_b =
-      get<::Tags::TempScalar<2>>(temp_buffer);
-  dot_product(make_not_null(&normal_dot_tilde_e_cross_tilde_b),
-              tilde_e_cross_tilde_b, normal_covector);
-  for (size_t i = 0; i < number_of_grid_points; ++i) {
-    get(*tilde_q)[i] = get(normal_dot_tilde_e_cross_tilde_b)[i] > 0.0
-                           ? get(interior_tilde_q)[i]
-                           : 0;
-  }
+  //   auto& tilde_e_cross_tilde_b = get<::Tags::TempI<3, 3>>(temp_buffer);
+  //   for (LeviCivitaIterator<3> it; it; ++it) {
+  //     const auto& i = it[0];
+  //     const auto& j = it[1];
+  //     const auto& k = it[2];
+  //     tilde_e_cross_tilde_b.get(i) +=
+  //         it.sign() * interior_tilde_e.get(j) * interior_tilde_b.get(k);
+  //   }
+  //   auto& normal_dot_tilde_e_cross_tilde_b =
+  //       get<::Tags::TempScalar<2>>(temp_buffer);
+  //   dot_product(make_not_null(&normal_dot_tilde_e_cross_tilde_b),
+  //               tilde_e_cross_tilde_b, normal_covector);
+  //   for (size_t i = 0; i < number_of_grid_points; ++i) {
+  //     get(*tilde_q)[i] = get(normal_dot_tilde_e_cross_tilde_b)[i] > 0.0
+  //                            ? get(interior_tilde_q)[i]
+  //                            : 0;
+  //   }
 
   // spatial metric and sqrt determinant of spatial metric can be retrived
   // from Databox but only as gridless_tags with whole volume data (unlike
@@ -178,13 +178,33 @@ std::optional<std::string> Nonreflecting::dg_ghost(
   get(interior_sqrt_det_spatial_metric) =
       1.0 / sqrt(get(interior_sqrt_det_spatial_metric));
 
-  // Only compute the drift current, ignore the implicit current since that's
-  // artificial.
   auto& exterior_tilde_j = get<Tags::TildeJ>(temp_buffer);
-  ForceFree::ComputeDriftTildeJ::apply(
-      make_not_null(&exterior_tilde_j), *tilde_q, *tilde_e, *tilde_b,
-      parallel_conductivity, *lapse, interior_sqrt_det_spatial_metric,
-      interior_spatial_metric, std::optional<Scalar<DataVector>>{});
+  //   get(*tilde_q) = get(interior_tilde_q);
+  //   ForceFree::Tags::ComputeTildeJ::function(
+  //       make_not_null(&exterior_tilde_j), interior_tilde_q, interior_tilde_e,
+  //       interior_tilde_b, parallel_conductivity, interior_lapse,
+  //       interior_sqrt_det_spatial_metric, interior_spatial_metric,
+  //       std::optional<Scalar<DataVector>>{});
+  //   auto& normal_dot_tilde_j = get<::Tags::TempScalar<2>>(temp_buffer);
+  //   dot_product(make_not_null(&normal_dot_tilde_j), exterior_tilde_j,
+  //               normal_covector);
+  //   for (size_t i = 0; i < number_of_grid_points; ++i) {
+  //     if (get(normal_dot_tilde_j)[i] < 0.0) {
+  //       get<0>(exterior_tilde_j)[i] = 0.0;
+  //       get<1>(exterior_tilde_j)[i] = 0.0;
+  //       get<2>(exterior_tilde_j)[i] = 0.0;
+  //     }
+  //   }
+  get(*tilde_q) = 0.0;
+  get<0>(exterior_tilde_j) = 0.0;
+  get<1>(exterior_tilde_j) = 0.0;
+  get<2>(exterior_tilde_j) = 0.0;
+
+  //   ForceFree::ComputeDriftTildeJ::apply(
+  //       make_not_null(&exterior_tilde_j), *tilde_q, interior_tilde_e,
+  //       interior_tilde_b, parallel_conductivity, *lapse,
+  //       interior_sqrt_det_spatial_metric, interior_spatial_metric,
+  //       std::optional<Scalar<DataVector>>{});
 
   Fluxes::apply(tilde_e_flux, tilde_b_flux, tilde_psi_flux, tilde_phi_flux,
                 tilde_q_flux, *tilde_e, *tilde_b, *tilde_psi, *tilde_phi,
@@ -215,6 +235,7 @@ void Nonreflecting::fd_ghost(
     const Scalar<DataVector>& volume_tilde_q,
 
     // fd_interior_temporary_tags
+    const tnsr::I<DataVector, 3, Frame::Inertial>& volume_tilde_j,
     const Scalar<DataVector>& volume_lapse,
     const tnsr::I<DataVector, 3, Frame::Inertial>& volume_shift,
     const tnsr::II<DataVector, 3, Frame::Inertial>& volume_inv_spatial_metric,
@@ -277,6 +298,7 @@ void Nonreflecting::fd_ghost(
   auto& interior_tilde_e = get<TildeE>(slice_buffer);
   auto& interior_tilde_b = get<TildeB>(slice_buffer);
   auto& interior_tilde_q = get<TildeQ>(slice_buffer);
+  auto& interior_tilde_j = get<TildeJ>(slice_buffer);
 
   // Slice and store outermost values of volume tensors to the buffer
   evolution::dg::subcell::slice_tensor_for_subcell(
@@ -287,6 +309,9 @@ void Nonreflecting::fd_ghost(
       direction, {});
   evolution::dg::subcell::slice_tensor_for_subcell(
       make_not_null(&interior_tilde_q), volume_tilde_q, subcell_extents, 1,
+      direction, {});
+  evolution::dg::subcell::slice_tensor_for_subcell(
+      make_not_null(&interior_tilde_j), volume_tilde_j, subcell_extents, 1,
       direction, {});
 
   // Construct normal vector and normal covector on the subcell face mesh.
@@ -376,29 +401,48 @@ void Nonreflecting::fd_ghost(
   get(*tilde_phi) = 0.0;
 
   // Charge density (drift)
-  auto& tilde_e_cross_tilde_b = get<::Tags::TempI<4, 3>>(slice_buffer);
-  for (LeviCivitaIterator<3> it; it; ++it) {
-    const auto& i = it[0];
-    const auto& j = it[1];
-    const auto& k = it[2];
-    tilde_e_cross_tilde_b.get(i) +=
-        it.sign() * interior_tilde_e.get(j) * interior_tilde_b.get(k);
-  }
-  auto& normal_dot_tilde_e_cross_tilde_b =
-      get<::Tags::TempScalar<2>>(slice_buffer);
-  dot_product(make_not_null(&normal_dot_tilde_e_cross_tilde_b),
-              tilde_e_cross_tilde_b, subcell_normal_covector);
-  for (size_t i = 0; i < num_subcell_face_pts; ++i) {
-    get(*tilde_q)[i] = get(normal_dot_tilde_e_cross_tilde_b)[i] > 0.0
-                           ? get(interior_tilde_q)[i]
-                           : 0;
-  }
+  //   auto& tilde_e_cross_tilde_b = get<::Tags::TempI<4, 3>>(slice_buffer);
+  //   for (LeviCivitaIterator<3> it; it; ++it) {
+  //     const auto& i = it[0];
+  //     const auto& j = it[1];
+  //     const auto& k = it[2];
+  //     tilde_e_cross_tilde_b.get(i) +=
+  //         it.sign() * interior_tilde_e.get(j) * interior_tilde_b.get(k);
+  //   }
+  //   auto& normal_dot_tilde_e_cross_tilde_b =
+  //       get<::Tags::TempScalar<2>>(slice_buffer);
+  //   dot_product(make_not_null(&normal_dot_tilde_e_cross_tilde_b),
+  //               tilde_e_cross_tilde_b, subcell_normal_covector);
+  //   for (size_t i = 0; i < num_subcell_face_pts; ++i) {
+  //     get(*tilde_q)[i] = get(normal_dot_tilde_e_cross_tilde_b)[i] > 0.0
+  //                            ? get(interior_tilde_q)[i]
+  //                            : 0;
+  //   }
+  // auto& normal_dot_tilde_j = get<::Tags::TempScalar<2>>(slice_buffer);
+  // dot_product(make_not_null(&normal_dot_tilde_j), interior_tilde_j,
+  //             subcell_normal_covector);
+  // for (size_t i = 0; i < num_subcell_face_pts; ++i) {
+  //   if (get(normal_dot_tilde_j)[i] > 0.0) {
+  //     get<0>(exterior_tilde_j)[i] = get<0>(interior_tilde_j)[i];
+  //     get<1>(exterior_tilde_j)[i] = get<1>(interior_tilde_j)[i];
+  //     get<2>(exterior_tilde_j)[i] = get<2>(interior_tilde_j)[i];
+  //   } else {
+  //     get<0>(exterior_tilde_j)[i] = 0.0;
+  //     get<1>(exterior_tilde_j)[i] = 0.0;
+  //     get<2>(exterior_tilde_j)[i] = 0.0;
+  //   }
+  // }
+  // get(exterior_tilde_q) = get(interior_tilde_q);
+  get(exterior_tilde_q) = 0.0;
+  get<0>(exterior_tilde_j) = 0.0;
+  get<1>(exterior_tilde_j) = 0.0;
+  get<2>(exterior_tilde_j) = 0.0;
 
-  ForceFree::ComputeDriftTildeJ::apply(
-      make_not_null(&exterior_tilde_j), exterior_tilde_q, exterior_tilde_e,
-      exterior_tilde_b, parallel_conductivity, interior_lapse,
-      interior_sqrt_det_spatial_metric, interior_spatial_metric,
-      std::optional<Scalar<DataVector>>{});
+  //   ForceFree::ComputeDriftTildeJ::apply(
+  //       make_not_null(&exterior_tilde_j), exterior_tilde_q, interior_tilde_e,
+  //       interior_tilde_b, parallel_conductivity, interior_lapse,
+  //       interior_sqrt_det_spatial_metric, interior_spatial_metric,
+  //       std::optional<Scalar<DataVector>>{});
 
   // Copy
   const size_t ghost_zone_size = reconstructor.ghost_zone_size();
