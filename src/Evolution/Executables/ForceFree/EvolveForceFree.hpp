@@ -33,6 +33,7 @@
 #include "Evolution/DgSubcell/NeighborTciDecision.hpp"
 #include "Evolution/DgSubcell/PerssonTci.hpp"
 #include "Evolution/DgSubcell/PrepareNeighborData.hpp"
+#include "Evolution/DgSubcell/SetInterpolators.hpp"
 #include "Evolution/DgSubcell/Tags/MethodOrder.hpp"
 #include "Evolution/DgSubcell/Tags/ObserverCoordinates.hpp"
 #include "Evolution/DgSubcell/Tags/ObserverMesh.hpp"
@@ -559,6 +560,8 @@ struct EvolutionMetavars {
           tmpl::list<
               evolution::dg::subcell::Actions::SetSubcellGrid<volume_dim,
                                                               system, false>,
+              Actions::MutateApply<
+                  evolution::dg::subcell::SetInterpolators<volume_dim>>,
               Initialization::Actions::AddSimpleTags<
                   evolution::dg::subcell::BackgroundGrVars<
                       system, EvolutionMetavars, true, false>,
