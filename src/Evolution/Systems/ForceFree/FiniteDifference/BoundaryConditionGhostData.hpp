@@ -181,9 +181,40 @@ void BoundaryConditionGhostData::apply(
           } else if constexpr (BoundaryCondition::bc_type ==
                                evolution::BoundaryConditions::Type::
                                    DemandOutgoingCharSpeeds) {
-            //
-            //
-            //
+            // This boundary condition only checks if all the characteristic
+            // speeds are directed outward.
+
+            const auto& dg_volume_mesh_velocity =
+                db::get<domain::Tags::MeshVelocity<3, Frame::Inertial>>(*box);
+
+            const auto apply_fd_demand_outgoing_char_speeds =
+                [&boundary_condition, &cell_centered_ghost_fluxes,
+                 &dg_volume_mesh_velocity, &direction,
+                 &ghost_data_vars](const auto&... boundary_ghost_data_args) {
+                  return (*boundary_condition)
+                      .fd_demand_outgoing_char_speeds(
+                          make_not_null(
+                              &get<ForceFree::Tags::TildeJ>(ghost_data_vars)),
+                          make_not_null(
+                              &get<ForceFree::Tags::TildeE>(ghost_data_vars)),
+                          make_not_null(
+                              &get<ForceFree::Tags::TildeB>(ghost_data_vars)),
+                          make_not_null(
+                              &get<ForceFree::Tags::TildePsi>(ghost_data_vars)),
+                          make_not_null(
+                              &get<ForceFree::Tags::TildePhi>(ghost_data_vars)),
+                          make_not_null(
+                              &get<ForceFree::Tags::TildeQ>(ghost_data_vars)),
+
+                          make_not_null(&cell_centered_ghost_fluxes),
+
+                          direction, dg_volume_mesh_velocity,
+                          boundary_ghost_data_args...);
+                };
+            apply_subcell_boundary_condition_impl(
+                apply_fd_demand_outgoing_char_speeds, box,
+                bcondition_interior_tags{});
+
           } else {
             ERROR("Unsupported boundary condition "
                   << pretty_type::short_name<BoundaryCondition>()
