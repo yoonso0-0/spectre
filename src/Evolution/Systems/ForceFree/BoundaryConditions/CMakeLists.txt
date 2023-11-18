@@ -9,6 +9,7 @@ spectre_target_sources(
   CopyFields.cpp
   DemandOutgoingCharSpeeds.cpp
   DirichletAnalytic.cpp
+  NoIncomingPoynting.cpp
   Nonreflecting.cpp
   )
 
@@ -21,5 +22,6 @@ spectre_target_headers(
   DemandOutgoingCharSpeeds.hpp
   DirichletAnalytic.hpp
   Factory.hpp
+  NoIncomingPoynting.hpp
   Nonreflecting.hpp
   )
