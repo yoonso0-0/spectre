@@ -212,7 +212,9 @@ struct EvolutionMetavars {
                  ForceFree::Tags::ChargeDensityCompute,
                  ForceFree::Tags::ElectricCurrentDensityCompute,
                  ForceFree::Tags::ElectricFieldDotMagneticFieldCompute,
-                 ForceFree::Tags::MagneticDominanceViolationCompute>>;
+                 ForceFree::Tags::MagneticDominanceViolationCompute,
+                 ForceFree::Tags::JouleHeatingCompute,
+                 ForceFree::Tags::NsInteriorSpatialVelocity>>;
 
   using non_tensor_compute_tags = tmpl::append<
       tmpl::conditional_t<
@@ -460,8 +462,6 @@ struct EvolutionMetavars {
       Actions::MutateApply<evolution::dg::subcell::fd::CellCenteredFlux<
           system, ForceFree::Fluxes, volume_dim, true>>,
 
-      //
-
       evolution::dg::subcell::fd::Actions::TakeTimeStep<
           ForceFree::subcell::TimeDerivative>,
       Actions::MutateApply<RecordTimeStepperData<system>>,
@@ -544,7 +544,7 @@ struct EvolutionMetavars {
                                                             false>>>>,
 
       // note : imex::Initialize mutator needs to be executed after
-      //        the TimeStepperHistory action
+      //        the TimeStepperHistory action AND grid initialization
       Initialization::Actions::InitializeItems<imex::Initialize<system>>,
 
       Initialization::Actions::AddComputeTags<tmpl::list<
