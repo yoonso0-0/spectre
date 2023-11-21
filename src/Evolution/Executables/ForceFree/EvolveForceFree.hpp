@@ -170,14 +170,13 @@ struct EvolutionMetavars {
   static constexpr size_t volume_dim = 3;
   using system = ForceFree::System;
   using temporal_id = Tags::TimeStepId;
-  using TimeStepperBase = TimeStepper;
+  using TimeStepperBase = ImexTimeStepper;
 
   static constexpr bool local_time_stepping =
       TimeStepperBase::local_time_stepping;
   static constexpr bool use_dg_element_collection = false;
 
-  //   static constexpr bool local_time_stepping = false;
-  //   static constexpr bool imex_time_stepping = true;
+  static constexpr bool imex_time_stepping = TimeStepperBase::imex;
 
   // The use_dg_subcell flag controls whether to use "standard" limiting (false)
   // or a DG-FD hybrid scheme (true).
@@ -222,7 +221,9 @@ struct EvolutionMetavars {
                  ForceFree::Tags::ChargeDensityCompute,
                  ForceFree::Tags::ElectricCurrentDensityCompute,
                  ForceFree::Tags::ElectricFieldDotMagneticFieldCompute,
-                 ForceFree::Tags::MagneticDominanceViolationCompute>>;
+                 ForceFree::Tags::MagneticDominanceViolationCompute,
+                 ForceFree::Tags::JouleHeatingCompute,
+                 ForceFree::Tags::NsInteriorSpatialVelocity>>;
 
   using non_tensor_compute_tags = tmpl::append<
       tmpl::conditional_t<
@@ -369,10 +370,8 @@ struct EvolutionMetavars {
                    TimeSequences::all_time_sequences<double>>,
         tmpl::pair<TimeSequence<std::uint64_t>,
                    TimeSequences::all_time_sequences<std::uint64_t>>,
-        tmpl::conditional_t<
-            imex_time_stepping,
-            tmpl::pair<ImexTimeStepper, TimeSteppers::imex_time_steppers>,
-            tmpl::pair<TimeStepper, TimeSteppers::time_steppers>>,
+        tmpl::pair<TimeStepper, TimeSteppers::time_steppers>,
+        tmpl::pair<ImexTimeStepper, TimeSteppers::imex_time_steppers>,
         tmpl::pair<Trigger, tmpl::append<Triggers::logical_triggers,
                                          Triggers::time_triggers>>>;
   };
@@ -464,15 +463,16 @@ struct EvolutionMetavars {
           system, volume_dim, false>,
 
       tmpl::list<Actions::RecordTimeStepperData<system>,
-                 tmpl::conditional_t<imex_time_stepping,
-                                     imex::Actions::RecordTimeStepperData,
-                                     tmpl::list<>>,
-                 evolution::Actions::RunEventsAndDenseTriggers<tmpl::list<>>,
+                 imex::Actions::RecordTimeStepperData<system>,
+
+                 evolution::Actions::RunEventsAndDenseTriggers<
+                     tmpl::list<imex::ImplicitDenseOutput<system>>>,
+
                  Actions::UpdateU<system>>,
 
       // implicit step
-      tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,
-                          tmpl::list<>>,
+      imex::Actions::DoImplicitStep<system>,
+
       // Interior BC
       Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>,
 
@@ -508,19 +508,19 @@ struct EvolutionMetavars {
       Actions::MutateApply<evolution::dg::subcell::fd::CellCenteredFlux<
           system, ForceFree::Fluxes, volume_dim, true>>,
 
-      //
-
       evolution::dg::subcell::fd::Actions::TakeTimeStep<
           ForceFree::subcell::TimeDerivative>,
       Actions::RecordTimeStepperData<system>,
-      tmpl::conditional_t<imex_time_stepping,
-                          imex::Actions::RecordTimeStepperData, tmpl::list<>>,
-      evolution::Actions::RunEventsAndDenseTriggers<tmpl::list<>>,
+      imex::Actions::RecordTimeStepperData<system>,
+
+      evolution::Actions::RunEventsAndDenseTriggers<
+          tmpl::list<imex::ImplicitDenseOutput<system>>>,
+
       Actions::UpdateU<system>,
 
       // implicit step
-      tmpl::conditional_t<imex_time_stepping, imex::Actions::DoImplicitStep,
-                          tmpl::list<>>,
+      imex::Actions::DoImplicitStep<system>,
+
       // Interior BC
       Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>,
 
@@ -584,11 +584,8 @@ struct EvolutionMetavars {
                                                             false>>>>,
 
       // note : imex::Initialize mutator needs to be executed after
-      //        the TimeStepperHistory action
-      tmpl::conditional_t<
-          imex_time_stepping,
-          Initialization::Actions::InitializeItems<imex::Initialize<system>>,
-          tmpl::list<>>,
+      //        the TimeStepperHistory action AND grid initialization
+      Initialization::Actions::InitializeItems<imex::Initialize<system>>,
 
       Initialization::Actions::AddComputeTags<tmpl::list<
           ForceFree::Tags::TildeESquaredCompute,
