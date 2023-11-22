@@ -11,6 +11,7 @@ spectre_target_sources(
   DirichletAnalytic.cpp
   NoIncomingPoynting.cpp
   Nonreflecting.cpp
+  Reflecting.cpp
   )
 
 spectre_target_headers(
@@ -24,4 +25,5 @@ spectre_target_headers(
   Factory.hpp
   NoIncomingPoynting.hpp
   Nonreflecting.hpp
+  Reflecting.hpp
   )
