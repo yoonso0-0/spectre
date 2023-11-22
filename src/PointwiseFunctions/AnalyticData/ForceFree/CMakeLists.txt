@@ -12,6 +12,7 @@ spectre_target_sources(
   MagnetosphericWald.cpp
   OrbitingBinary.cpp
   OverlappingAlfvenWaves.cpp
+  PolarMagnetosphericWald.cpp
   RotatingDipole.cpp
   )
 
@@ -25,6 +26,7 @@ spectre_target_headers(
   MagnetosphericWald.hpp
   OrbitingBinary.hpp
   OverlappingAlfvenWaves.hpp
+  PolarMagnetosphericWald.hpp
   RotatingDipole.hpp
   )
 
@@ -34,5 +36,6 @@ target_link_libraries(
   DataStructures
   ErrorHandling
   GeneralRelativitySolutions
+  GrMhdAnalyticData
   Options
   )
