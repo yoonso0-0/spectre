@@ -10,6 +10,7 @@
 #include "Evolution/Systems/ForceFree/BoundaryConditions/DirichletAnalytic.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryConditions/NoIncomingPoynting.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryConditions/Nonreflecting.hpp"
+#include "Evolution/Systems/ForceFree/BoundaryConditions/Reflecting.hpp"
 #include "Utilities/TMPL.hpp"
 
 namespace ForceFree::BoundaryConditions {
@@ -20,5 +21,5 @@ using standard_boundary_conditions =
     //    Nonreflecting>;
     tmpl::list<domain::BoundaryConditions::Periodic<BoundaryCondition>,
                DemandOutgoingCharSpeeds, DirichletAnalytic, NoIncomingPoynting,
-               Nonreflecting>;
+               Nonreflecting, Reflecting>;
 }  // namespace ForceFree::BoundaryConditions
