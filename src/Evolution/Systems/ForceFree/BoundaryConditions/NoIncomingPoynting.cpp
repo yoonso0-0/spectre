@@ -144,8 +144,8 @@ std::optional<std::string> NoIncomingPoynting::dg_ghost(
     if (get(normal_dot_drift_velocity)[m] < 0.0) {
       for (size_t d = 0; d < 3; ++d) {
         // Project out normal component of drift velocity
-        drift_velocity.get(d)[m] -=
-            get(normal_dot_drift_velocity)[m] * normal_vector.get(d)[m];
+        // drift_velocity.get(d)[m] -=
+        // get(normal_dot_drift_velocity)[m] * normal_vector.get(d)[m];
         (*tilde_e).get(d)[m] = 0.0;
       }
 
@@ -154,8 +154,8 @@ std::optional<std::string> NoIncomingPoynting::dg_ghost(
         const auto& i = it[0];
         const auto& j = it[1];
         const auto& k = it[2];
-        (*tilde_e).get(i)[m] +=
-            it.sign() * interior_tilde_b.get(j)[m] * drift_velocity.get(k)[m];
+        // (*tilde_e).get(i)[m] +=
+        // it.sign() * interior_tilde_b.get(j)[m] * drift_velocity.get(k)[m];
       }
     }
   }
@@ -345,8 +345,9 @@ void NoIncomingPoynting::fd_ghost(
     if (get(normal_dot_drift_velocity)[m] < 0.0) {
       // Project out normal component of drift velocity
       for (size_t d = 0; d < 3; ++d) {
-        drift_velocity.get(d)[m] -=
-            get(normal_dot_drift_velocity)[m] * subcell_normal_vector.get(d)[m];
+        // drift_velocity.get(d)[m] -=
+        //     get(normal_dot_drift_velocity)[m] *
+        //     subcell_normal_vector.get(d)[m];
         exterior_tilde_e.get(d)[m] = 0.0;
       }
       // E = B x Vd
@@ -354,8 +355,8 @@ void NoIncomingPoynting::fd_ghost(
         const auto& i = it[0];
         const auto& j = it[1];
         const auto& k = it[2];
-        exterior_tilde_e.get(i)[m] +=
-            it.sign() * interior_tilde_b.get(j)[m] * drift_velocity.get(k)[m];
+        // exterior_tilde_e.get(i)[m] +=
+        // it.sign() * interior_tilde_b.get(j)[m] * drift_velocity.get(k)[m];
       }
     }
   }
