@@ -39,7 +39,7 @@ struct ParallelCurrent : tt::ConformsTo<imex::protocols::ImplicitSector> {
     using jacobian = imex::NoJacobianBecauseSolutionIsAnalytic;
   };
 
-  using solve_attempts = tmpl::list<ExactSolve>;
+  using solve_attempts = tmpl::list<ExactSolve, IgnoreRectifierTerm>;
 };
 
 }  // namespace Imex
