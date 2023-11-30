@@ -79,13 +79,13 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnDgGrid::apply(
                  min(min(get(subcell_mag_tilde_b)), min(get(dg_mag_tilde_b)))};
 
   if (evolution::dg::subcell::persson_tci(
-          dg_mag_tilde_e, dg_mesh, persson_exponent,
+          dg_mag_tilde_e, dg_mesh, tci_options.alpha_mag_e,
           subcell_options.persson_num_highest_modes())) {
     return {-1, std::move(rdmp_tci_data)};
   }
 
   if (evolution::dg::subcell::persson_tci(
-          dg_mag_tilde_b, dg_mesh, persson_exponent,
+          dg_mag_tilde_b, dg_mesh, tci_options.alpha_mag_b,
           subcell_options.persson_num_highest_modes())) {
     return {-2, std::move(rdmp_tci_data)};
   }

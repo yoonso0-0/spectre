@@ -41,7 +41,17 @@ struct TciOptions {
         "this option to 'DoNotCheckTildeQ'."};
   };
 
-  using options = tmpl::list<TildeQCutoff>;
+  struct AlphaMagE {
+    using type = double;
+    static constexpr Options::String help = {"If"};
+  };
+
+  struct AlphaMagB {
+    using type = double;
+    static constexpr Options::String help = {"If"};
+  };
+
+  using options = tmpl::list<TildeQCutoff, AlphaMagE, AlphaMagB>;
 
   static constexpr Options::String help = {
       "Options for the troubled-cell indicator"};
@@ -54,6 +64,8 @@ struct TciOptions {
 
   std::optional<double> tilde_q_cutoff{
       std::numeric_limits<double>::signaling_NaN()};
+  double alpha_mag_e{std::numeric_limits<double>::signaling_NaN()};
+  double alpha_mag_b{std::numeric_limits<double>::signaling_NaN()};
 };
 
 namespace OptionTags {

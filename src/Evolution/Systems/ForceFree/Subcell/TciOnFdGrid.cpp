@@ -86,13 +86,13 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
       evolution::dg::subcell::fd::ReconstructionMethod::DimByDim);
 
   if (evolution::dg::subcell::persson_tci(
-          dg_mag_tilde_e, dg_mesh, persson_exponent,
+          dg_mag_tilde_e, dg_mesh, tci_options.alpha_mag_e + 1.0,
           subcell_options.persson_num_highest_modes())) {
     return {+1, rdmp_tci_data};
   }
 
   if (evolution::dg::subcell::persson_tci(
-          dg_mag_tilde_b, dg_mesh, persson_exponent,
+          dg_mag_tilde_b, dg_mesh, tci_options.alpha_mag_b + 1.0,
           subcell_options.persson_num_highest_modes())) {
     return {+2, rdmp_tci_data};
   }
