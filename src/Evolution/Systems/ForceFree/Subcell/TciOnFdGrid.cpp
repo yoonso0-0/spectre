@@ -20,8 +20,9 @@ namespace ForceFree::subcell {
 std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_e,
     const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_b,
-    const Scalar<DataVector>& subcell_tilde_q, const Mesh<3>& dg_mesh,
-    const Mesh<3>& subcell_mesh,
+    const Scalar<DataVector>& subcell_tilde_q,
+    const std::optional<Scalar<DataVector>>& ns_interior_mask,
+    const Mesh<3>& dg_mesh, const Mesh<3>& subcell_mesh,
     const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
     const TciOptions& tci_options,
     const evolution::dg::subcell::SubcellOptions& subcell_options,
@@ -60,6 +61,10 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
     return {false, rdmp_tci_data};
   }
 
+  if (ns_interior_mask.has_value()) {
+    return {+10, std::move(rdmp_tci_data)};
+  }
+
   // Note : we compute mag(E), mag(B) on FD grid first and then project their
   // magnitude to DG grid, NOT projecting E^i and B^i on DG grid then compute
   // magnitudes of them.
@@ -85,14 +90,17 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
       subcell_mesh.extents(),
       evolution::dg::subcell::fd::ReconstructionMethod::DimByDim);
 
-  if (evolution::dg::subcell::persson_tci(
-          dg_mag_tilde_e, dg_mesh, tci_options.alpha_mag_e + 1.0,
+  if (tci_options.alpha_mag_e.has_value() and
+      evolution::dg::subcell::persson_tci(
+          dg_mag_tilde_e, dg_mesh,
+          tci_options.alpha_mag_e.value() + tci_options.delta_alpha,
           subcell_options.persson_num_highest_modes())) {
     return {+1, rdmp_tci_data};
   }
 
   if (evolution::dg::subcell::persson_tci(
-          dg_mag_tilde_b, dg_mesh, tci_options.alpha_mag_b + 1.0,
+          dg_mag_tilde_b, dg_mesh,
+          tci_options.alpha_mag_b + tci_options.delta_alpha,
           subcell_options.persson_num_highest_modes())) {
     return {+2, rdmp_tci_data};
   }

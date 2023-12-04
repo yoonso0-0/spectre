@@ -23,8 +23,9 @@ namespace ForceFree::subcell {
 std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnDgGrid::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_e,
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
-    const Scalar<DataVector>& tilde_q, const Mesh<3>& dg_mesh,
-    const Mesh<3>& subcell_mesh,
+    const Scalar<DataVector>& tilde_q,
+    const std::optional<Scalar<DataVector>>& ns_interior_mask,
+    const Mesh<3>& dg_mesh, const Mesh<3>& subcell_mesh,
     const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
     const TciOptions& tci_options,
     const evolution::dg::subcell::SubcellOptions& subcell_options,
@@ -78,9 +79,15 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnDgGrid::apply(
       DataVector{min(min(get(subcell_mag_tilde_e)), min(get(dg_mag_tilde_e))),
                  min(min(get(subcell_mag_tilde_b)), min(get(dg_mag_tilde_b)))};
 
-  if (evolution::dg::subcell::persson_tci(
-          dg_mag_tilde_e, dg_mesh, tci_options.alpha_mag_e,
-          subcell_options.persson_num_highest_modes())) {
+  if (ns_interior_mask.has_value()) {
+    return {-10, std::move(rdmp_tci_data)};
+  }
+
+  if (tci_options.alpha_mag_e.has_value() and
+      evolution::dg::subcell::persson_tci(
+          dg_mag_tilde_e, dg_mesh,
+          tci_options.alpha_mag_e.value()
+              subcell_options.persson_num_highest_modes())) {
     return {-1, std::move(rdmp_tci_data)};
   }
 

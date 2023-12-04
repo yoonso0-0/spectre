@@ -24,6 +24,7 @@ namespace ForceFree::subcell {
 struct TciOptions {
  private:
   struct DoNotCheckTildeQ {};
+  struct DoNotCheckTildeE {};
 
  public:
   /*!
@@ -42,7 +43,7 @@ struct TciOptions {
   };
 
   struct AlphaMagE {
-    using type = double;
+    using type = Options::Auto<double, DoNotCheckTildeE>;
     static constexpr Options::String help = {"If"};
   };
 
@@ -51,7 +52,12 @@ struct TciOptions {
     static constexpr Options::String help = {"If"};
   };
 
-  using options = tmpl::list<TildeQCutoff, AlphaMagE, AlphaMagB>;
+  struct DeltaAlpha {
+    using type = double;
+    static constexpr Options::String help = {"If"};
+  };
+
+  using options = tmpl::list<TildeQCutoff, AlphaMagE, AlphaMagB, DeltaAlpha>;
 
   static constexpr Options::String help = {
       "Options for the troubled-cell indicator"};
@@ -64,8 +70,10 @@ struct TciOptions {
 
   std::optional<double> tilde_q_cutoff{
       std::numeric_limits<double>::signaling_NaN()};
-  double alpha_mag_e{std::numeric_limits<double>::signaling_NaN()};
+  std::optional<double> alpha_mag_e{
+      std::numeric_limits<double>::signaling_NaN()};
   double alpha_mag_b{std::numeric_limits<double>::signaling_NaN()};
+  double delta_alpha{std::numeric_limits<double>::signaling_NaN()};
 };
 
 namespace OptionTags {
