@@ -82,16 +82,17 @@ class TciOnFdGrid {
   using return_tags = tmpl::list<>;
   using argument_tags =
       tmpl::list<ForceFree::Tags::TildeE, ForceFree::Tags::TildeB,
-                 ForceFree::Tags::TildeQ, domain::Tags::Mesh<3>,
-                 evolution::dg::subcell::Tags::Mesh<3>,
+                 ForceFree::Tags::TildeQ, ForceFree::Tags::NsInteriorMask,
+                 domain::Tags::Mesh<3>, evolution::dg::subcell::Tags::Mesh<3>,
                  evolution::dg::subcell::Tags::DataForRdmpTci, Tags::TciOptions,
                  evolution::dg::subcell::Tags::SubcellOptions<3>>;
 
   static std::tuple<int, evolution::dg::subcell::RdmpTciData> apply(
       const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_e,
       const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_b,
-      const Scalar<DataVector>& subcell_tilde_q, const Mesh<3>& dg_mesh,
-      const Mesh<3>& subcell_mesh,
+      const Scalar<DataVector>& subcell_tilde_q,
+      const std::optional<Scalar<DataVector>>& ns_interior_mask,
+      const Mesh<3>& dg_mesh, const Mesh<3>& subcell_mesh,
       const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
       const TciOptions& tci_options,
       const evolution::dg::subcell::SubcellOptions& subcell_options,

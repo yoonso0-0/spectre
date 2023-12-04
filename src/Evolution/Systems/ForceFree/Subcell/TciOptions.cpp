@@ -18,6 +18,7 @@ void TciOptions::pup(PUP::er& p) {
   p | tilde_q_cutoff;
   p | alpha_mag_b;
   p | alpha_mag_e;
+  p | delta_alpha;
 }
 
 }  // namespace ForceFree::subcell
