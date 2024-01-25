@@ -92,10 +92,13 @@ void test(const TestThis test_this, const int expected_tci_status) {
       1,
       1};
 
-  const ForceFree::subcell::TciOptions tci_options{1.0e-10};
+  const ForceFree::subcell::TciOptions tci_options{1.0e-10, 4.0, 4.0, 1.0,
+                                                   false};
+  const std::optional<Scalar<DataVector>> ns_interior_mask{};
 
   auto box = db::create<db::AddSimpleTags<
-      ::Tags::Variables<VarsForTciTest::tags_list>, ::domain::Tags::Mesh<3>,
+      ::Tags::Variables<VarsForTciTest::tags_list>,
+      ForceFree::Tags::NsInteriorMask, ::domain::Tags::Mesh<3>,
       ::evolution::dg::subcell::Tags::Mesh<3>,
       gr::Tags::SqrtDetSpatialMetric<DataVector>,
       gr::Tags::SpatialMetric<DataVector, 3>,
@@ -103,8 +106,8 @@ void test(const TestThis test_this, const int expected_tci_status) {
       ForceFree::subcell::Tags::TciOptions,
       evolution::dg::subcell::Tags::SubcellOptions<3>,
       evolution::dg::subcell::Tags::DataForRdmpTci>>(
-      dg_vars, dg_mesh, subcell_mesh, sqrt_det_spatial_metric, spatial_metric,
-      inv_spatial_metric, tci_options, subcell_options,
+      dg_vars, ns_interior_mask, dg_mesh, subcell_mesh, sqrt_det_spatial_metric,
+      spatial_metric, inv_spatial_metric, tci_options, subcell_options,
       evolution::dg::subcell::RdmpTciData{});
 
   const size_t point_to_change = dg_mesh.number_of_grid_points() / 2;
