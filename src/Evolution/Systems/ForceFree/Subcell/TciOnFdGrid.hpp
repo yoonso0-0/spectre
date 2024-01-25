@@ -83,6 +83,7 @@ class TciOnFdGrid {
   using argument_tags =
       tmpl::list<ForceFree::Tags::TildeE, ForceFree::Tags::TildeB,
                  ForceFree::Tags::TildeQ, ForceFree::Tags::NsInteriorMask,
+                 domain::Tags::Coordinates<3, Frame::Inertial>,
                  domain::Tags::Mesh<3>, evolution::dg::subcell::Tags::Mesh<3>,
                  evolution::dg::subcell::Tags::DataForRdmpTci, Tags::TciOptions,
                  evolution::dg::subcell::Tags::SubcellOptions<3>>;
@@ -92,6 +93,7 @@ class TciOnFdGrid {
       const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_b,
       const Scalar<DataVector>& subcell_tilde_q,
       const std::optional<Scalar<DataVector>>& ns_interior_mask,
+      const tnsr::I<DataVector, 3, Frame::Inertial>& dg_inertial_coords,
       const Mesh<3>& dg_mesh, const Mesh<3>& subcell_mesh,
       const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
       const TciOptions& tci_options,
