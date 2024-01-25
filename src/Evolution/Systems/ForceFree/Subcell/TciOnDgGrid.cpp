@@ -26,6 +26,7 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnDgGrid::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
     const Scalar<DataVector>& tilde_q,
     const std::optional<Scalar<DataVector>>& ns_interior_mask,
+    const tnsr::I<DataVector, 3, Frame::Inertial>& dg_inertial_coords,
     const Mesh<3>& dg_mesh, const Mesh<3>& subcell_mesh,
     const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
     const TciOptions& tci_options,
@@ -37,6 +38,15 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnDgGrid::apply(
   const size_t num_subcell_pts = subcell_mesh.number_of_grid_points();
 
   DataVector temp_buffer{2 * num_dg_pts + 2 * num_subcell_pts};
+
+  const double y_mid = dg_inertial_coords.get(1)[num_dg_pts / 2];
+
+  if (y_mid < 0.0) {
+    return {-1, std::move(rdmp_tci_data)};
+  } else {
+    return {0, std::move(rdmp_tci_data)};
+  }
+
   size_t offset_into_temp_buffer = 0;
   const auto assign_data =
       [&temp_buffer, &offset_into_temp_buffer](

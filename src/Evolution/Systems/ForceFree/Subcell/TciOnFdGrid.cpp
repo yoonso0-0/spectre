@@ -22,6 +22,7 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
     const tnsr::I<DataVector, 3, Frame::Inertial>& subcell_tilde_b,
     const Scalar<DataVector>& subcell_tilde_q,
     const std::optional<Scalar<DataVector>>& ns_interior_mask,
+    const tnsr::I<DataVector, 3, Frame::Inertial>& dg_inertial_coords,
     const Mesh<3>& dg_mesh, const Mesh<3>& subcell_mesh,
     const evolution::dg::subcell::RdmpTciData& past_rdmp_tci_data,
     const TciOptions& tci_options,
@@ -29,6 +30,15 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
     const double persson_exponent, const bool need_rdmp_data_only) {
   const size_t num_dg_pts = dg_mesh.number_of_grid_points();
   const size_t num_subcell_pts = subcell_mesh.number_of_grid_points();
+
+  const double y_mid = dg_inertial_coords.get(1)[num_dg_pts / 2];
+  evolution::dg::subcell::RdmpTciData rdmp_tci_data{};
+
+  if (y_mid < 0.0) {
+    return {1, std::move(rdmp_tci_data)};
+  } else {
+    return {0, std::move(rdmp_tci_data)};
+  }
 
   DataVector temp_buffer{3 * num_dg_pts + 2 * num_subcell_pts};
   size_t offset_into_temp_buffer = 0;
@@ -51,7 +61,6 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
   assign_data(make_not_null(&subcell_mag_tilde_b), num_subcell_pts);
   magnitude(make_not_null(&subcell_mag_tilde_b), subcell_tilde_b);
 
-  evolution::dg::subcell::RdmpTciData rdmp_tci_data{};
   rdmp_tci_data.max_variables_values =
       DataVector{max(get(subcell_mag_tilde_e)), max(get(subcell_mag_tilde_b))};
   rdmp_tci_data.min_variables_values =
