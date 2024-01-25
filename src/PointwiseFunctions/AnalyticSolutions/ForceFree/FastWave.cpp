@@ -34,13 +34,16 @@ DataVector FastWave::initial_profile(const DataVector& coords) {
   auto result = make_with_value<DataVector>(coords, 1.0);
   for (size_t i = 0; i < result.size(); ++i) {
     const double& x = coords[i];
-    if (x > -0.1) {
-      if (x <= 0.1) {
-        result[i] = -1.5 * x + 0.85;
-      } else {
-        result[i] = 0.7;
-      }
-    }
+    // if (x > -0.1) {
+    //   if (x <= 0.1) {
+    //     // result[i] = -1.5 * x + 0.85;
+    //     result[i] = 0.85 - 0.15 * sin(5 * M_PI * x);
+    //   } else {
+    //     result[i] = 0.7;
+    //   }
+    // }
+    // A pure sine wave
+    result[i] = sin(M_PI * x);
   }
   return result;
 }
