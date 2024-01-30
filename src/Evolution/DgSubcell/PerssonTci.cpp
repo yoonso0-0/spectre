@@ -23,7 +23,8 @@ namespace evolution::dg::subcell::detail {
 template <size_t Dim>
 bool persson_tci_impl(const gsl::not_null<DataVector*> filtered_component,
                       const DataVector& component, const Mesh<Dim>& dg_mesh,
-                      const double alpha, const size_t num_highest_modes) {
+                      const double alpha, const size_t num_highest_modes,
+                      const bool umax_if_true_norm_if_false) {
   ASSERT(component.size() == dg_mesh.number_of_grid_points(),
          "The tensor components being checked must have the same number of "
          "grid points as the DG mesh. The tensor has "
@@ -75,11 +76,14 @@ bool persson_tci_impl(const gsl::not_null<DataVector*> filtered_component,
     // would be sufficient to stick to the case 2 for now.
     //
 
-    const double component_norm{l2Norm(component)};
+    const double tol =
+        umax_if_true_norm_if_false
+            ? max(abs(component)) * sqrt(dg_mesh.number_of_grid_points())
+            : l2Norm(component);
 
     if (pow(dg_mesh.extents(d) - num_highest_modes, alpha) *
             l2Norm(*filtered_component) >
-        component_norm) {
+        tol) {
       return true;
     }
   }
@@ -92,7 +96,8 @@ bool persson_tci_impl(const gsl::not_null<DataVector*> filtered_component,
   template bool persson_tci_impl(                                  \
       gsl::not_null<DataVector*> filtered_component,               \
       const DataVector& component, const Mesh<DIM(data)>& dg_mesh, \
-      double alpha, size_t num_highest_modes);
+      double alpha, size_t num_highest_modes,                      \
+      bool umax_if_true_norm_if_false);
 
 GENERATE_INSTANTIATIONS(INSTANTIATION, (1, 2, 3))
 

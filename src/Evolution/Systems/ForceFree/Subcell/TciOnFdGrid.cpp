@@ -94,14 +94,16 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
       evolution::dg::subcell::persson_tci(
           dg_mag_tilde_e, dg_mesh,
           tci_options.alpha_mag_e.value() + tci_options.delta_alpha,
-          subcell_options.persson_num_highest_modes())) {
+          subcell_options.persson_num_highest_modes(),
+          tci_options.use_umax_instead_of_norm)) {
     return {+1, rdmp_tci_data};
   }
 
   if (evolution::dg::subcell::persson_tci(
           dg_mag_tilde_b, dg_mesh,
           tci_options.alpha_mag_b + tci_options.delta_alpha,
-          subcell_options.persson_num_highest_modes())) {
+          subcell_options.persson_num_highest_modes(),
+          tci_options.use_umax_instead_of_norm)) {
     return {+2, rdmp_tci_data};
   }
 
@@ -109,7 +111,8 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnFdGrid::apply(
       max(abs(get(dg_tilde_q))) > tci_options.tilde_q_cutoff.value() and
       evolution::dg::subcell::persson_tci(
           dg_tilde_q, dg_mesh, persson_exponent,
-          subcell_options.persson_num_highest_modes())) {
+          subcell_options.persson_num_highest_modes(),
+          tci_options.use_umax_instead_of_norm)) {
     return {+3, rdmp_tci_data};
   }
 

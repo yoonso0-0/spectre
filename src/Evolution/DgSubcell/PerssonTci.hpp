@@ -17,7 +17,8 @@ namespace detail {
 template <size_t Dim>
 bool persson_tci_impl(gsl::not_null<DataVector*> filtered_component,
                       const DataVector& component, const Mesh<Dim>& dg_mesh,
-                      double alpha, size_t num_highest_modes);
+                      double alpha, size_t num_highest_modes,
+                      bool umax_if_true_norm_if_false);
 }  // namespace detail
 
 /*!
@@ -70,13 +71,14 @@ bool persson_tci_impl(gsl::not_null<DataVector*> filtered_component,
 template <size_t Dim, typename SymmList, typename IndexList>
 bool persson_tci(const Tensor<DataVector, SymmList, IndexList>& tensor,
                  const Mesh<Dim>& dg_mesh, const double alpha,
-                 const size_t num_highest_modes) {
+                 const size_t num_highest_modes,
+                 const bool umax_if_true_norm_if_false) {
   DataVector filtered_component(dg_mesh.number_of_grid_points());
   for (size_t component_index = 0; component_index < tensor.size();
        ++component_index) {
-    if (detail::persson_tci_impl(make_not_null(&filtered_component),
-                                 tensor[component_index], dg_mesh, alpha,
-                                 num_highest_modes)) {
+    if (detail::persson_tci_impl(
+            make_not_null(&filtered_component), tensor[component_index],
+            dg_mesh, alpha, num_highest_modes, umax_if_true_norm_if_false)) {
       return true;
     }
   }
