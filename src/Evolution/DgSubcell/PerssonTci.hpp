@@ -22,7 +22,8 @@ template <size_t Dim>
 bool persson_tci_impl(
     gsl::not_null<DataVector*> filtered_component, const DataVector& component,
     const Mesh<Dim>& dg_mesh, double alpha, size_t num_highest_modes,
-    Spectral::Parity parity = Spectral::Parity::Uninitialized);
+    Spectral::Parity parity = Spectral::Parity::Uninitialized,
+    bool umax_if_true_norm_if_false = false);
 }  // namespace detail
 
 /*!
@@ -76,7 +77,8 @@ bool persson_tci_impl(
 template <size_t Dim, typename SymmList, typename IndexList>
 bool persson_tci(const Tensor<DataVector, SymmList, IndexList>& tensor,
                  const Mesh<Dim>& dg_mesh, const double alpha,
-                 const size_t num_highest_modes) {
+                 const size_t num_highest_modes,
+                 const bool umax_if_true_norm_if_false = false) {
   DataVector filtered_component(dg_mesh.number_of_grid_points());
   if constexpr (Dim == 3) {
     if (dg_mesh.basis(0) == Spectral::Basis::ZernikeB1) {
@@ -88,7 +90,8 @@ bool persson_tci(const Tensor<DataVector, SymmList, IndexList>& tensor,
         if (detail::persson_tci_impl(
                 make_not_null(&filtered_component), tensor[component_index],
                 dg_mesh, alpha, num_highest_modes,
-                gsl::at(component_parities, component_index))) {
+                gsl::at(component_parities, component_index),
+                umax_if_true_norm_if_false)) {
           return true;
         }
       }
@@ -97,9 +100,10 @@ bool persson_tci(const Tensor<DataVector, SymmList, IndexList>& tensor,
   }
   for (size_t component_index = 0; component_index < tensor.size();
        ++component_index) {
-    if (detail::persson_tci_impl(make_not_null(&filtered_component),
-                                 tensor[component_index], dg_mesh, alpha,
-                                 num_highest_modes)) {
+    if (detail::persson_tci_impl(
+            make_not_null(&filtered_component), tensor[component_index],
+            dg_mesh, alpha, num_highest_modes,
+            Spectral::Parity::Uninitialized, umax_if_true_norm_if_false)) {
       return true;
     }
   }

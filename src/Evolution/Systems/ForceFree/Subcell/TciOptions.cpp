@@ -19,6 +19,7 @@ void TciOptions::pup(PUP::er& p) {
   p | alpha_mag_b;
   p | alpha_mag_e;
   p | delta_alpha;
+  p | use_umax_instead_of_norm;
 }
 
 }  // namespace ForceFree::subcell
