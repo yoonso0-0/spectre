@@ -16,6 +16,7 @@
 #include "Evolution/DgSubcell/RdmpTciData.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/TciOptions.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
+#include "ParallelAlgorithms/Amr/Criteria/Persson.hpp"
 #include "Utilities/Gsl.hpp"
 
 namespace ForceFree::subcell {
@@ -85,15 +86,16 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnDgGrid::apply(
 
   if (tci_options.alpha_mag_e.has_value() and
       evolution::dg::subcell::persson_tci(
-          dg_mag_tilde_e, dg_mesh,
-          tci_options.alpha_mag_e.value()
-              subcell_options.persson_num_highest_modes())) {
+          dg_mag_tilde_e, dg_mesh, tci_options.alpha_mag_e.value(),
+          subcell_options.persson_num_highest_modes(),
+          tci_options.use_umax_instead_of_norm)) {
     return {-1, std::move(rdmp_tci_data)};
   }
 
   if (evolution::dg::subcell::persson_tci(
           dg_mag_tilde_b, dg_mesh, tci_options.alpha_mag_b,
-          subcell_options.persson_num_highest_modes())) {
+          subcell_options.persson_num_highest_modes(),
+          tci_options.use_umax_instead_of_norm)) {
     return {-2, std::move(rdmp_tci_data)};
   }
 
@@ -101,7 +103,8 @@ std::tuple<int, evolution::dg::subcell::RdmpTciData> TciOnDgGrid::apply(
       max(abs(get(tilde_q))) > tci_options.tilde_q_cutoff.value() and
       evolution::dg::subcell::persson_tci(
           tilde_q, dg_mesh, persson_exponent,
-          subcell_options.persson_num_highest_modes())) {
+          subcell_options.persson_num_highest_modes(),
+          tci_options.use_umax_instead_of_norm)) {
     return {-3, std::move(rdmp_tci_data)};
   }
 

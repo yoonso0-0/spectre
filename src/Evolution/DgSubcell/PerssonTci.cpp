@@ -26,7 +26,8 @@ template <size_t Dim>
 bool persson_tci_impl(const gsl::not_null<DataVector*> filtered_component,
                       const DataVector& component, const Mesh<Dim>& dg_mesh,
                       const double alpha, const size_t num_highest_modes,
-                      const Spectral::Parity parity) {
+                      const Spectral::Parity parity,
+                      const bool umax_if_true_norm_if_false) {
   ASSERT(component.size() == dg_mesh.number_of_grid_points(),
          "The tensor components being checked must have the same number of "
          "grid points as the DG mesh. The tensor has "
@@ -103,12 +104,15 @@ bool persson_tci_impl(const gsl::not_null<DataVector*> filtered_component,
     //
 
     if (not component_norm.has_value()) {
-      component_norm = l2Norm(component);
+      component_norm =
+          umax_if_true_norm_if_false
+              ? max(abs(component)) * sqrt(dg_mesh.number_of_grid_points())
+              : l2Norm(component);
     }
 
     if (pow(static_cast<double>(num_to_zero), alpha) *
             l2Norm(*filtered_component) >
-        component_norm) {
+        component_norm.value()) {
       return true;
     }
   }
@@ -121,7 +125,8 @@ bool persson_tci_impl(const gsl::not_null<DataVector*> filtered_component,
   template bool persson_tci_impl(                                  \
       gsl::not_null<DataVector*> filtered_component,               \
       const DataVector& component, const Mesh<DIM(data)>& dg_mesh, \
-      double alpha, size_t num_highest_modes, Spectral::Parity parity);
+      double alpha, size_t num_highest_modes, Spectral::Parity parity, \
+      bool umax_if_true_norm_if_false);
 
 GENERATE_INSTANTIATIONS(INSTANTIATION, (1, 2, 3))
 

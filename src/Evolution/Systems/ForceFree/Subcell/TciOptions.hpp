@@ -57,13 +57,22 @@ struct TciOptions {
     static constexpr Options::String help = {"If"};
   };
 
-  using options = tmpl::list<TildeQCutoff, AlphaMagE, AlphaMagB, DeltaAlpha>;
+  struct UseUmaxInsteadOfNorm {
+    using type = bool;
+    static constexpr Options::String help = {"If"};
+  };
+
+  using options = tmpl::list<TildeQCutoff, AlphaMagE, AlphaMagB, DeltaAlpha,
+                             UseUmaxInsteadOfNorm>;
 
   static constexpr Options::String help = {
       "Options for the troubled-cell indicator"};
 
   TciOptions();
   explicit TciOptions(std::optional<double> tilde_q_cutoff_in);
+  TciOptions(std::optional<double> tilde_q_cutoff_in,
+             std::optional<double> alpha_mag_e_in, double alpha_mag_b_in,
+             double delta_alpha_in, bool use_umax_instead_of_norm_in);
 
   // NOLINTNEXTLINE(google-runtime-references)
   void pup(PUP::er& /*p*/);
@@ -74,6 +83,7 @@ struct TciOptions {
       std::numeric_limits<double>::signaling_NaN()};
   double alpha_mag_b{std::numeric_limits<double>::signaling_NaN()};
   double delta_alpha{std::numeric_limits<double>::signaling_NaN()};
+  bool use_umax_instead_of_norm{false};
 };
 
 namespace OptionTags {
