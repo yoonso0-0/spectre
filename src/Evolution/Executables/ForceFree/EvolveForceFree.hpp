@@ -77,6 +77,7 @@
 #include "Evolution/Systems/ForceFree/NsInteriorSpatialVelocity.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/GhostData.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/NeighborPackagedData.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/ProjectElectricField.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/SetInitialRdmpData.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/SwapGrTags.hpp"
 #include "Evolution/Systems/ForceFree/Subcell/SwapMask.hpp"
@@ -460,6 +461,9 @@ struct EvolutionMetavars {
       Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
       Actions::MutateApply<ForceFree::subcell::SwapMask>,
 
+      // Project out parallel electric field here
+      Actions::MutateApply<ForceFree::subcell::ProjectElectricField>,
+
       // cell-centered flux
       Actions::MutateApply<evolution::dg::subcell::fd::CellCenteredFlux<
           system, ForceFree::Fluxes, volume_dim, true>>,
@@ -481,6 +485,8 @@ struct EvolutionMetavars {
           ForceFree::subcell::TciOnFdGrid>,
       Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
       Actions::MutateApply<ForceFree::subcell::SwapMask>,
+      // Project out parallel electric field here
+      Actions::MutateApply<ForceFree::subcell::ProjectElectricField>,
       Actions::Label<evolution::dg::subcell::Actions::Labels::EndOfSolvers>>>;
 
   using step_actions =
