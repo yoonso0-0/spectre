@@ -8,6 +8,7 @@ spectre_target_sources(
   ComputeFluxes.hpp
   GhostData.cpp
   NeighborPackagedData.cpp
+  ProjectElectricField.cpp
   SetInitialRdmpData.cpp
   SwapGrTags.cpp
   SwapMask.cpp
@@ -22,6 +23,7 @@ spectre_target_headers(
   HEADERS
   GhostData.hpp
   NeighborPackagedData.hpp
+  ProjectElectricField.hpp
   SetInitialRdmpData.hpp
   Subcell.hpp
   SwapGrTags.hpp
