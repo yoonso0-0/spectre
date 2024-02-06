@@ -470,6 +470,13 @@ struct EvolutionMetavars {
 
                  Actions::UpdateU<system>>,
 
+      // Try DG filtering
+      dg::Actions::Filter<
+          Filters::Exponential<0>,
+          tmpl::list<ForceFree::Tags::TildeE, ForceFree::Tags::TildeB,
+                     ForceFree::Tags::TildePsi, ForceFree::Tags::TildePhi,
+                     ForceFree::Tags::TildeQ>>,
+
       // implicit step
       imex::Actions::DoImplicitStep<system>,
 
