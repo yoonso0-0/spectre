@@ -16,6 +16,7 @@
 #include "DataStructures/Tags/TempTensor.hpp"
 #include "DataStructures/Tensor/EagerMath/DeterminantAndInverse.hpp"
 #include "DataStructures/Tensor/EagerMath/DotProduct.hpp"
+#include "DataStructures/Tensor/EagerMath/RaiseOrLowerIndex.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Domain/Structure/Direction.hpp"
@@ -25,7 +26,6 @@
 #include "Evolution/Systems/ForceFree/ElectricCurrentDensity.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Reconstructor.hpp"
 #include "Evolution/Systems/ForceFree/Fluxes.hpp"
-#include "DataStructures/Tensor/EagerMath/RaiseOrLowerIndex.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 
@@ -139,32 +139,21 @@ std::optional<std::string> NoIncomingPoynting::dg_ghost(
   get(*tilde_phi) = 0.0;
   get(*tilde_q) = get(interior_tilde_q);
 
-  // Fix the electric field when (v_i n^i) < 0
-  for (size_t m = 0; m < number_of_grid_points; ++m) {
-    if (get(normal_dot_drift_velocity)[m] < 0.0) {
-      for (size_t d = 0; d < 3; ++d) {
-        // Project out normal component of drift velocity
-        // drift_velocity.get(d)[m] -=
-        // get(normal_dot_drift_velocity)[m] * normal_vector.get(d)[m];
-        (*tilde_e).get(d)[m] = 0.0;
-      }
-
-      // E = B x v
-      for (LeviCivitaIterator<3> it; it; ++it) {
-        const auto& i = it[0];
-        const auto& j = it[1];
-        const auto& k = it[2];
-        // (*tilde_e).get(i)[m] +=
-        // it.sign() * interior_tilde_b.get(j)[m] * drift_velocity.get(k)[m];
-      }
-    }
-  }
-
   auto& exterior_tilde_j = get<::Tags::TempI<1, 3>>(temp_buffer);
-  ForceFree::ComputeDriftTildeJ::apply(
+  ForceFree::Tags::ComputeTildeJ::function(
       make_not_null(&exterior_tilde_j), *tilde_q, *tilde_e, *tilde_b,
       parallel_conductivity, *lapse, interior_sqrt_det_spatial_metric,
       interior_spatial_metric, std::optional<Scalar<DataVector>>{});
+
+  // Fix the electric field and J^i when (v_i n^i) < 0
+  for (size_t m = 0; m < number_of_grid_points; ++m) {
+    if (get(normal_dot_drift_velocity)[m] < 0.0) {
+      for (size_t d = 0; d < 3; ++d) {
+        (*tilde_e).get(d)[m] = 0.0;
+        exterior_tilde_j.get(d)[m] = 0.0;
+      }
+    }
+  }
 
   Fluxes::apply(tilde_e_flux, tilde_b_flux, tilde_psi_flux, tilde_phi_flux,
                 tilde_q_flux, *tilde_e, *tilde_b, *tilde_psi, *tilde_phi,
@@ -340,32 +329,20 @@ void NoIncomingPoynting::fd_ghost(
   }
   get(exterior_tilde_q) = get(interior_tilde_q);
 
-  // Compute the filtered electric field
-  for (size_t m = 0; m < num_subcell_face_pts; ++m) {
-    if (get(normal_dot_drift_velocity)[m] < 0.0) {
-      // Project out normal component of drift velocity
-      for (size_t d = 0; d < 3; ++d) {
-        // drift_velocity.get(d)[m] -=
-        //     get(normal_dot_drift_velocity)[m] *
-        //     subcell_normal_vector.get(d)[m];
-        exterior_tilde_e.get(d)[m] = 0.0;
-      }
-      // E = B x Vd
-      for (LeviCivitaIterator<3> it; it; ++it) {
-        const auto& i = it[0];
-        const auto& j = it[1];
-        const auto& k = it[2];
-        // exterior_tilde_e.get(i)[m] +=
-        // it.sign() * interior_tilde_b.get(j)[m] * drift_velocity.get(k)[m];
-      }
-    }
-  }
-
-  ForceFree::ComputeDriftTildeJ::apply(
+  ForceFree::Tags::ComputeTildeJ::function(
       make_not_null(&exterior_tilde_j), exterior_tilde_q, exterior_tilde_e,
       exterior_tilde_b, parallel_conductivity, interior_lapse,
       interior_sqrt_det_spatial_metric, interior_spatial_metric,
       std::optional<Scalar<DataVector>>{});
+
+  for (size_t m = 0; m < num_subcell_face_pts; ++m) {
+    if (get(normal_dot_drift_velocity)[m] < 0.0) {
+      for (size_t d = 0; d < 3; ++d) {
+        exterior_tilde_e.get(d)[m] = 0.0;
+        exterior_tilde_j.get(d)[m] = 0.0;
+      }
+    }
+  }
 
   // Copy
   const size_t ghost_zone_size = reconstructor.ghost_zone_size();
