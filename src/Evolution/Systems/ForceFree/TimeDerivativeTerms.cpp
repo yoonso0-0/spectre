@@ -55,7 +55,6 @@ evolution::dg::TimeDerivativeDecisions<3> TimeDerivativeTerms::apply(
     const Scalar<DataVector>& tilde_psi, const Scalar<DataVector>& tilde_phi,
     const Scalar<DataVector>& tilde_q,
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_j,
-    const double kappa_psi, const double kappa_phi,
     const double parallel_conductivity,
 
     const std::optional<Scalar<DataVector>>& neutron_star_interior_mask,
@@ -106,8 +105,8 @@ evolution::dg::TimeDerivativeDecisions<3> TimeDerivativeTerms::apply(
   detail::sources_impl(non_flux_terms_dt_tilde_e, non_flux_terms_dt_tilde_b,
                        non_flux_terms_dt_tilde_psi, non_flux_terms_dt_tilde_phi,
                        *trace_spatial_christoffel_second, tilde_e, tilde_b,
-                       tilde_psi, tilde_phi, tilde_q, *tilde_j_drift, kappa_psi,
-                       kappa_phi, lapse, d_lapse, d_shift, inv_spatial_metric,
+                       tilde_psi, tilde_phi, tilde_q, *tilde_j_drift, lapse,
+                       d_lapse, d_shift, inv_spatial_metric,
                        extrinsic_curvature);
   return {true};
 }
