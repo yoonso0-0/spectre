@@ -20,8 +20,6 @@ def source_tilde_e(
     tilde_psi,
     tilde_phi,
     tilde_q,
-    kappa_psi,
-    kappa_phi,
     parallel_conductivity,
     interior_mask,
     lapse,
@@ -63,8 +61,6 @@ def source_tilde_b(
     tilde_psi,
     tilde_phi,
     tilde_q,
-    kappa_psi,
-    kappa_phi,
     parallel_conductivity,
     interior_mask,
     lapse,
@@ -89,8 +85,6 @@ def source_tilde_phi(
     tilde_psi,
     tilde_phi,
     tilde_q,
-    kappa_psi,
-    kappa_phi,
     parallel_conductivity,
     interior_mask,
     lapse,
@@ -102,8 +96,8 @@ def source_tilde_phi(
     sqrt_det_spatial_metric,
     extrinsic_curvature,
 ):
-    return np.einsum("a, a", tilde_b, d_lapse) - lapse * tilde_phi * (
-        np.einsum("ab, ab", inv_spatial_metric, extrinsic_curvature) + kappa_phi
+    return np.einsum("a, a", tilde_b, d_lapse) - lapse * tilde_phi * np.einsum(
+        "ab, ab", inv_spatial_metric, extrinsic_curvature
     )
 
 
@@ -113,8 +107,6 @@ def source_tilde_psi(
     tilde_psi,
     tilde_phi,
     tilde_q,
-    kappa_psi,
-    kappa_phi,
     parallel_conductivity,
     interior_mask,
     lapse,
@@ -131,8 +123,5 @@ def source_tilde_psi(
         + lapse * tilde_q
         - lapse
         * tilde_psi
-        * (
-            np.einsum("ab, ab", inv_spatial_metric, extrinsic_curvature)
-            + kappa_psi
-        )
+        * np.einsum("ab, ab", inv_spatial_metric, extrinsic_curvature)
     )

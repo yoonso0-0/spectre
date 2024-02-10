@@ -35,7 +35,6 @@ void forward_to_time_deriv(
     const Scalar<DataVector>& tilde_psi, const Scalar<DataVector>& tilde_phi,
     const Scalar<DataVector>& tilde_q,
     const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_j_drift,
-    const double kappa_psi, const double kappa_phi,
     const double parallel_conductivity,
 
     const std::optional<Scalar<DataVector>>& neutron_star_interior_mask,
@@ -80,8 +79,8 @@ void forward_to_time_deriv(
       make_not_null(&get<gr::Tags::Shift<DataVector, 3>>(temp)),
       make_not_null(&get<gr::Tags::InverseSpatialMetric<DataVector, 3>>(temp)),
 
-      tilde_e, tilde_b, tilde_psi, tilde_phi, tilde_q, tilde_j_drift, kappa_psi,
-      kappa_phi, parallel_conductivity,
+      tilde_e, tilde_b, tilde_psi, tilde_phi, tilde_q, tilde_j_drift,
+      parallel_conductivity,
 
       neutron_star_interior_mask,
 
