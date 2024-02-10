@@ -13,6 +13,7 @@
 #include "Evolution/Systems/ForceFree/BoundaryCorrections/BoundaryCorrection.hpp"
 #include "Evolution/Systems/ForceFree/Characteristics.hpp"
 #include "Evolution/Systems/ForceFree/ElectricCurrentDensity.hpp"
+#include "Evolution/Systems/ForceFree/Imex/DivergenceCleaning.hpp"
 #include "Evolution/Systems/ForceFree/Imex/ImplicitSectors.hpp"
 #include "Evolution/Systems/ForceFree/Imex/InitialGuess.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
@@ -238,9 +239,7 @@ struct System : tt::ConformsTo<imex::protocols::ImexSystem> {
   using inverse_spatial_metric_tag =
       gr::Tags::InverseSpatialMetric<DataVector, volume_dim, Frame::Inertial>;
 
-  using ImplicitSector = ForceFree::Imex::ParallelCurrent;
-
-  using implicit_sectors = tmpl::list<ImplicitSector>;
-  //   using implicit_sectors = ForceFree::Imex::ParallelCurrent;
+  using implicit_sectors = tmpl::list<ForceFree::Imex::ParallelCurrent,
+                                      ForceFree::Imex::DivCleaning>;
 };
 }  // namespace ForceFree

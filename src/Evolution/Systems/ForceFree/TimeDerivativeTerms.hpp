@@ -53,7 +53,7 @@ struct TimeDerivativeTerms {
   using argument_tags = tmpl::list<
       // EM tags
       Tags::TildeE, Tags::TildeB, Tags::TildePsi, Tags::TildePhi, Tags::TildeQ,
-      Tags::TildeJ, Tags::KappaPsi, Tags::KappaPhi, Tags::ParallelConductivity,
+      Tags::TildeJ, Tags::ParallelConductivity,
 
       // std::optional used for masking the interior of star
       Tags::NsInteriorMask,
@@ -113,7 +113,6 @@ struct TimeDerivativeTerms {
       const Scalar<DataVector>& tilde_psi, const Scalar<DataVector>& tilde_phi,
       const Scalar<DataVector>& tilde_q,
       const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_j,
-      const double kappa_psi, const double kappa_phi,
       const double parallel_conductivity,
 
       const std::optional<Scalar<DataVector>>& neutron_star_interior_mask,
