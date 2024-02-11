@@ -6,11 +6,13 @@
 #include "PointwiseFunctions/AnalyticSolutions/ForceFree/AlfvenWave.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/ForceFree/ExactWald.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/ForceFree/FastWave.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/ForceFree/RotatingDipoleBoundary.hpp"
 #include "Utilities/TMPL.hpp"
 
 namespace ForceFree::Solutions {
 /*!
  * \brief Typelist of all analytic solutions of GRFFE evolution system
  */
-using all_solutions = tmpl::list<AlfvenWave, ExactWald, FastWave>;
+using all_solutions =
+    tmpl::list<AlfvenWave, ExactWald, FastWave, RotatingDipoleBoundary>;
 }  // namespace ForceFree::Solutions
