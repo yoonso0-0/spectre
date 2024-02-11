@@ -11,6 +11,7 @@ spectre_target_sources(
   AlfvenWave.cpp
   ExactWald.cpp
   FastWave.cpp
+  RotatingDipoleBoundary.cpp
   )
 
 spectre_target_headers(
@@ -21,6 +22,7 @@ spectre_target_headers(
   ExactWald.hpp
   Factory.hpp
   FastWave.hpp
+  RotatingDipoleBoundary.hpp
   Solutions.hpp
   )
 
