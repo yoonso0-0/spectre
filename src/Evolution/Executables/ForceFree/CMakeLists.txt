@@ -24,6 +24,7 @@ target_link_libraries(
   ForceFreeSolutions
   GeneralRelativitySolutions
   IO
+  Imex
   Informer
   LinearOperators
   Options

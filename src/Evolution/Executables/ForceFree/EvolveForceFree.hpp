@@ -28,6 +28,11 @@
 #include "Evolution/DiscontinuousGalerkin/Initialization/Mortars.hpp"
 #include "Evolution/DiscontinuousGalerkin/Initialization/SetupEqualRateRegions.hpp"
 #include "Evolution/DiscontinuousGalerkin/Initialization/SpectralFilters.hpp"
+#include "Evolution/Imex/Actions/DoImplicitStep.hpp"
+#include "Evolution/Imex/Actions/RecordTimeStepperData.hpp"
+#include "Evolution/Imex/CleanHistory.hpp"
+#include "Evolution/Imex/ImplicitDenseOutput.hpp"
+#include "Evolution/Imex/Initialize.hpp"
 #include "Evolution/Initialization/ConservativeSystem.hpp"
 #include "Evolution/Initialization/DgDomain.hpp"
 #include "Evolution/Initialization/Evolution.hpp"
@@ -39,7 +44,6 @@
 #include "Evolution/Systems/ForceFree/Constraints.hpp"
 #include "Evolution/Systems/ForceFree/ElectricCurrentDensity.hpp"
 #include "Evolution/Systems/ForceFree/ElectromagneticVariables.hpp"
-#include "Evolution/Systems/ForceFree/ForceFreeConstraints.hpp"
 #include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
 #include "Evolution/Systems/ForceFree/System.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
@@ -92,6 +96,7 @@
 #include "Time/Tags/TimeStepId.hpp"
 #include "Time/TimeSequence.hpp"
 #include "Time/TimeSteppers/Factory.hpp"
+#include "Time/TimeSteppers/ImexTimeStepper.hpp"
 #include "Time/TimeSteppers/TimeStepper.hpp"
 #include "Time/Triggers/TimeTriggers.hpp"
 #include "Time/UpdateU.hpp"
@@ -176,6 +181,7 @@ struct EvolutionMetavars {
                    TimeSequences::all_time_sequences<double>>,
         tmpl::pair<TimeSequence<std::uint64_t>,
                    TimeSequences::all_time_sequences<std::uint64_t>>,
+        tmpl::pair<ImexTimeStepper, TimeSteppers::imex_time_steppers>,
         tmpl::pair<TimeStepper, TimeSteppers::time_steppers>,
         tmpl::pair<Trigger, tmpl::append<Triggers::logical_triggers,
                                          Triggers::time_triggers>>,
@@ -197,13 +203,17 @@ struct EvolutionMetavars {
       evolution::dg::Actions::ApplyBoundaryCorrectionsToTimeDerivative<
           volume_dim, use_dg_element_collection>,
       Actions::MutateApply<RecordTimeStepperData<system>>,
+      imex::Actions::RecordTimeStepperData<system>,
       evolution::Actions::RunEventsAndDenseTriggers<tmpl::list<
-          evolution::dg::ApplyLtsDenseBoundaryCorrections<EvolutionMetavars>>>,
+          evolution::dg::ApplyLtsDenseBoundaryCorrections<EvolutionMetavars>,
+          imex::ImplicitDenseOutput<system>>>,
       Actions::MutateApply<UpdateU<system>>,
       evolution::dg::Actions::ApplyLtsBoundaryCorrections<
           volume_dim, use_dg_element_collection>,
+      imex::Actions::DoImplicitStep<system>,
       Actions::MutateApply<ChangeTimeStepperOrder<system>>,
       Actions::MutateApply<CleanHistory<system>>,
+      Actions::MutateApply<imex::CleanHistory<system>>,
       Actions::MutateApply<evolution::dg::CleanMortarHistory<volume_dim>>,
 
       dg::Actions::SpectralFilter<volume_dim,
@@ -222,8 +232,8 @@ struct EvolutionMetavars {
 
   using initialization_actions = tmpl::list<
       Initialization::Actions::InitializeItems<
-          Initialization::TimeStepping<EvolutionMetavars, TimeStepper, false,
-                                       true>,
+          Initialization::TimeStepping<EvolutionMetavars, ImexTimeStepper,
+                                       false, true>,
           evolution::dg::Initialization::Domain<EvolutionMetavars>>,
       Initialization::Actions::AddSimpleTags<
           evolution::dg::BackgroundGrVars<system, EvolutionMetavars>>,
@@ -235,6 +245,10 @@ struct EvolutionMetavars {
 
       Initialization::Actions::AddSimpleTags<
           ForceFree::MaskNeutronStarInterior<EvolutionMetavars, false>>,
+
+      // note : imex::Initialize mutator needs to be executed after
+      //        the TimeStepperHistory action
+      Initialization::Actions::InitializeItems<imex::Initialize<system>>,
 
       Initialization::Actions::AddComputeTags<
           tmpl::list<ForceFree::Tags::TildeESquaredCompute,

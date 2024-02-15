@@ -103,3 +103,39 @@ def tilde_j(
         spatial_metric,
         ns_interior_mask,
     )
+
+
+def jacobian(
+    tilde_e,
+    tilde_b,
+    parallel_conductivity,
+    lapse,
+    spatial_metric,
+    ns_interior_mask,
+):
+    tilde_e_one_form = np.einsum("a, ia", tilde_e, spatial_metric)
+    tilde_b_one_form = np.einsum("a, ia", tilde_b, spatial_metric)
+    tilde_e_squared = np.einsum("a, a", tilde_e_one_form, tilde_e)
+    tilde_b_squared = np.einsum("a, a", tilde_b_one_form, tilde_b)
+
+    result = np.outer(tilde_b_one_form, tilde_b)
+
+    result += (
+        2.0
+        * np.heaviside(tilde_e_squared - tilde_b_squared, 1.0)
+        * np.outer(tilde_e_one_form, tilde_e)
+    )
+
+    result += np.identity(3) * np.maximum(
+        tilde_e_squared - tilde_b_squared, 0.0
+    )
+
+    result *= -lapse * parallel_conductivity / tilde_b_squared
+
+    # handling optional mask
+    if ns_interior_mask is None:
+        return result
+    else:
+        return np.where(ns_interior_mask > 0.0, result, -1.0)
+
+    return result

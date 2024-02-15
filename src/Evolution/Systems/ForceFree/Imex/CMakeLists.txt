@@ -4,6 +4,8 @@
 spectre_target_sources(
   ${LIBRARY}
   PRIVATE
+  ImplicitSectors.cpp
+  InitialGuess.cpp
   )
 
 spectre_target_headers(
@@ -11,4 +13,6 @@ spectre_target_headers(
   INCLUDE_DIRECTORY ${CMAKE_SOURCE_DIR}/src
   HEADERS
   Imex.hpp
+  ImplicitSector.hpp
+  InitialGuess.hpp
   )
