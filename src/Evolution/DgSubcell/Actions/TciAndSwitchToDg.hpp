@@ -23,6 +23,7 @@
 #include "Evolution/DgSubcell/RdmpTciData.hpp"
 #include "Evolution/DgSubcell/Reconstruction.hpp"
 #include "Evolution/DgSubcell/ReconstructionMethod.hpp"
+#include "Evolution/DgSubcell/ResizeImexTags.hpp"
 #include "Evolution/DgSubcell/SubcellOptions.hpp"
 #include "Evolution/DgSubcell/Tags/ActiveGrid.hpp"
 #include "Evolution/DgSubcell/Tags/CellCenteredFlux.hpp"
@@ -35,6 +36,8 @@
 #include "Evolution/DgSubcell/Tags/TciCallsSinceRollback.hpp"
 #include "Evolution/DgSubcell/Tags/TciGridHistory.hpp"
 #include "Evolution/DgSubcell/Tags/TciStatus.hpp"
+#include "Evolution/Imex/Tags/ImplicitHistory.hpp"
+#include "Evolution/Imex/Tags/SolveFailures.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "Parallel/AlgorithmExecution.hpp"
 #include "Time/History.hpp"
@@ -43,6 +46,7 @@
 #include "Utilities/ContainerHelpers.hpp"
 #include "Utilities/ErrorHandling/Assert.hpp"
 #include "Utilities/Gsl.hpp"
+#include "Utilities/SetNumberOfGridPoints.hpp"
 #include "Utilities/TMPL.hpp"
 
 /// \cond
@@ -350,6 +354,13 @@ struct TciAndSwitchToDg {
             *subcell_cell_centered_fluxes = std::nullopt;
           },
           make_not_null(&box));
+
+      if constexpr (Metavariables::TimeStepperBase::imex) {
+        detail::ResizeImexTags::apply<
+            false, typename Metavariables::system::implicit_sectors>(
+            box, dg_mesh, subcell_mesh, subcell_options);
+      }
+
       return {Parallel::AlgorithmExecution::Continue, std::nullopt};
     }
 

@@ -29,6 +29,7 @@
 #include "Evolution/DgSubcell/Projection.hpp"
 #include "Evolution/DgSubcell/RdmpTci.hpp"
 #include "Evolution/DgSubcell/RdmpTciData.hpp"
+#include "Evolution/DgSubcell/ResizeImexTags.hpp"
 #include "Evolution/DgSubcell/SubcellOptions.hpp"
 #include "Evolution/DgSubcell/Tags/ActiveGrid.hpp"
 #include "Evolution/DgSubcell/Tags/Coordinates.hpp"
@@ -42,6 +43,8 @@
 #include "Evolution/DgSubcell/Tags/SubcellOptions.hpp"
 #include "Evolution/DgSubcell/Tags/TciStatus.hpp"
 #include "Evolution/DiscontinuousGalerkin/InboxTags.hpp"
+#include "Evolution/Imex/Tags/ImplicitHistory.hpp"
+#include "Evolution/Imex/Tags/SolveFailures.hpp"
 #include "NumericalAlgorithms/Interpolation/IrregularInterpolant.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "Parallel/AlgorithmExecution.hpp"
@@ -52,6 +55,7 @@
 #include "Time/Tags/HistoryEvolvedVariables.hpp"
 #include "Utilities/ContainerHelpers.hpp"
 #include "Utilities/ErrorHandling/Assert.hpp"
+#include "Utilities/SetNumberOfGridPoints.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
 
@@ -268,6 +272,12 @@ struct TciAndRollback {
         db::get<
             evolution::dg::subcell::Tags::InterpolatorsFromNeighborDgToFd<Dim>>(
             box));
+
+    if constexpr (Metavariables::TimeStepperBase::imex) {
+      detail::ResizeImexTags::apply<
+          true, typename Metavariables::system::implicit_sectors>(
+          box, dg_mesh, subcell_mesh, subcell_options);
+    }
 
     if (UNLIKELY(db::get<::Tags::TimeStepId>(box).slab_number() < 0)) {
       // If we are doing self start, then we need to project the initial
