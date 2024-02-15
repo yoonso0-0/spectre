@@ -38,6 +38,7 @@ spectre_target_headers(
   Reconstruction.hpp
   ReconstructionMethod.hpp
   ReconstructionOrder.hpp
+  ResizeImexTags.hpp
   SetInterpolators.hpp
   SliceData.hpp
   SliceTensor.hpp
@@ -80,6 +81,7 @@ target_link_libraries(
   Domain
   DomainCreators
   Evolution
+  Imex
   Interpolation
   Parallel
   Spectral

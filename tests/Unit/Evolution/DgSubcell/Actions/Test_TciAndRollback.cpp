@@ -52,6 +52,7 @@
 #include "Time/Tags/TimeStepId.hpp"
 #include "Time/Time.hpp"
 #include "Time/TimeStepId.hpp"
+#include "Time/TimeSteppers/TimeStepper.hpp"
 #include "Utilities/Algorithm.hpp"
 #include "Utilities/CartesianProduct.hpp"
 #include "Utilities/ErrorHandling/Error.hpp"
@@ -139,6 +140,8 @@ struct Metavariables {
   using analytic_variables_tags = typename system::variables_tag::tags_list;
   using const_global_cache_tags =
       tmpl::list<evolution::dg::subcell::Tags::SubcellOptions<Dim>>;
+
+  using TimeStepperBase = TimeStepper;
 
   // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
   static bool rdmp_fails;

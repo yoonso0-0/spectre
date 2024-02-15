@@ -126,6 +126,8 @@ struct Metavariables {
   // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
   static bool tci_rdmp_data_only;
 
+  using TimeStepperBase = TimeStepper;
+
   struct TciOnSubcellGrid {
     using return_tags = tmpl::list<>;
     using argument_tags =
