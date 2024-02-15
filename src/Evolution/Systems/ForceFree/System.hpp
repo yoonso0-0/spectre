@@ -7,11 +7,17 @@
 
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "DataStructures/VariablesTag.hpp"
+#include "Evolution/Imex/GuessResult.hpp"
+#include "Evolution/Imex/Protocols/ImexSystem.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryConditions/BoundaryCondition.hpp"
 #include "Evolution/Systems/ForceFree/Characteristics.hpp"
+#include "Evolution/Systems/ForceFree/ElectricCurrentDensity.hpp"
+#include "Evolution/Systems/ForceFree/Imex/ImplicitSectors.hpp"
+#include "Evolution/Systems/ForceFree/Imex/InitialGuess.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "Evolution/Systems/ForceFree/TimeDerivativeTerms.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
+#include "Utilities/ProtocolHelpers.hpp"
 
 ///\cond
 class DataVector;
@@ -196,7 +202,7 @@ namespace ForceFree {
  * implicit time steppers.
  *
  */
-struct System {
+struct System : tt::ConformsTo<imex::protocols::ImexSystem> {
   static std::string name() { return "ForceFree"; }
 
   static constexpr bool is_in_flux_conservative_form = true;
@@ -230,6 +236,11 @@ struct System {
       Tags::LargestCharacteristicSpeedCompute;
 
   using inverse_spatial_metric_tag =
-      gr::Tags::InverseSpatialMetric<DataVector, volume_dim>;
+      gr::Tags::InverseSpatialMetric<DataVector, volume_dim, Frame::Inertial>;
+
+  using ImplicitSector = ForceFree::Imex::ParallelCurrent;
+
+  using implicit_sectors = tmpl::list<ImplicitSector>;
+  //   using implicit_sectors = ForceFree::Imex::ParallelCurrent;
 };
 }  // namespace ForceFree

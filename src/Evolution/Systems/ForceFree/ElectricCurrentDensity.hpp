@@ -7,8 +7,13 @@
 #include "DataStructures/DataBox/Prefixes.hpp"
 #include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
+#include "Evolution/Imex/Protocols/ImplicitSource.hpp"
+#include "Evolution/Imex/Protocols/ImplicitSourceJacobian.hpp"
+#include "Evolution/Imex/Tags/Jacobian.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "PointwiseFunctions/GeneralRelativity/TagsDeclarations.hpp"
+#include "Utilities/ProtocolHelpers.hpp"
+#include "Utilities/Protocols/StaticReturnApplyable.hpp"
 #include "Utilities/TMPL.hpp"
 
 /// \cond
@@ -131,5 +136,48 @@ struct ComputeTildeJ : TildeJ, db::ComputeTag {
       const std::optional<Scalar<DataVector>>& neutron_star_interior_mask);
 };
 }  // namespace Tags
+
+/*!
+ * \brief Computes the stiff source term, which has minus signs
+ *
+ */
+struct StiffSourceTildeE : tt::ConformsTo<imex::protocols::ImplicitSource>,
+                           tt::ConformsTo<protocols::StaticReturnApplyable> {
+  using return_tags = tmpl::list<::Tags::Source<Tags::TildeE>>;
+  using argument_tags =
+      tmpl::list<Tags::TildeQ, Tags::TildeE, Tags::TildeB,
+                 Tags::ParallelConductivity, gr::Tags::Lapse<DataVector>,
+                 gr::Tags::SqrtDetSpatialMetric<DataVector>,
+                 gr::Tags::SpatialMetric<DataVector, 3>, Tags::NsInteriorMask>;
+  static void apply(
+      gsl::not_null<tnsr::I<DataVector, 3, Frame::Inertial>*>
+          stiff_source_tilde_e,
+      const Scalar<DataVector>& tilde_q,
+      const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_e,
+      const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
+      const double parallel_conductivity, const Scalar<DataVector>& lapse,
+      const Scalar<DataVector>& sqrt_det_spatial_metric,
+      const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+      const std::optional<Scalar<DataVector>>& neutron_star_interior_mask);
+};
+
+struct StiffSourceTildeEJacobian
+    : tt::ConformsTo<imex::protocols::ImplicitSourceJacobian>,
+      tt::ConformsTo<protocols::StaticReturnApplyable> {
+  using return_tags = tmpl::list<
+      ::imex::Tags::Jacobian<Tags::TildeE, ::Tags::Source<Tags::TildeE>>>;
+  using argument_tags =
+      tmpl::list<Tags::TildeE, Tags::TildeB, Tags::ParallelConductivity,
+                 gr::Tags::Lapse<DataVector>,
+                 gr::Tags::SpatialMetric<DataVector, 3>, Tags::NsInteriorMask>;
+
+  static void apply(
+      gsl::not_null<tnsr::iJ<DataVector, 3>*> d_source_e_d_tilde_e,
+      const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_e,
+      const tnsr::I<DataVector, 3, Frame::Inertial>& tilde_b,
+      const double parallel_conductivity, const Scalar<DataVector>& lapse,
+      const tnsr::ii<DataVector, 3, Frame::Inertial>& spatial_metric,
+      const std::optional<Scalar<DataVector>>& neutron_star_interior_mask);
+};
 
 }  // namespace ForceFree
