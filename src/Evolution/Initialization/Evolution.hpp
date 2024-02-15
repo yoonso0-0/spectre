@@ -40,6 +40,7 @@
 #include "Time/Tags/TimeStepper.hpp"
 #include "Time/Time.hpp"
 #include "Time/TimeStepId.hpp"
+#include "Time/TimeSteppers/ImexTimeStepper.hpp"
 #include "Time/TimeSteppers/LtsTimeStepper.hpp"
 #include "Time/TimeSteppers/TimeStepper.hpp"
 #include "Utilities/Algorithm.hpp"
@@ -329,6 +330,16 @@ struct TimeStepperHistory {
             time_stepper.order()) -
         time_stepper.number_of_past_steps();
     history->integration_order(starting_order);
+
+    // DtVars dt_vars{num_grid_points};
+    // typename ::Tags::HistoryEvolvedVariables<variables_tag>::type history{
+    //     starting_order};
+
+    // Initialization::mutate_assign<tmpl::list<
+    //     dt_variables_tag, ::Tags::HistoryEvolvedVariables<variables_tag>>>(
+    //     make_not_null(&box), std::move(dt_vars), std::move(history));
+
+    // return {Parallel::AlgorithmExecution::Continue, std::nullopt};
   }
 };
 
