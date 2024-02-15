@@ -17,6 +17,29 @@
 #include "Evolution/Actions/RunEventsAndTriggers.hpp"
 #include "Evolution/BoundaryCorrection.hpp"
 #include "Evolution/ComputeTags.hpp"
+#include "Evolution/DgSubcell/Actions/Initialize.hpp"
+#include "Evolution/DgSubcell/Actions/Labels.hpp"
+#include "Evolution/DgSubcell/Actions/ReconstructionCommunication.hpp"
+#include "Evolution/DgSubcell/Actions/SelectNumericalMethod.hpp"
+#include "Evolution/DgSubcell/Actions/TakeTimeStep.hpp"
+#include "Evolution/DgSubcell/Actions/TciAndRollback.hpp"
+#include "Evolution/DgSubcell/Actions/TciAndSwitchToDg.hpp"
+#include "Evolution/DgSubcell/BackgroundGrVars.hpp"
+#include "Evolution/DgSubcell/CartesianFluxDivergence.hpp"
+#include "Evolution/DgSubcell/CellCenteredFlux.hpp"
+#include "Evolution/DgSubcell/ComputeBoundaryTerms.hpp"
+#include "Evolution/DgSubcell/CorrectPackagedData.hpp"
+#include "Evolution/DgSubcell/GetTciDecision.hpp"
+#include "Evolution/DgSubcell/NeighborReconstructedFaceSolution.hpp"
+#include "Evolution/DgSubcell/NeighborTciDecision.hpp"
+#include "Evolution/DgSubcell/PerssonTci.hpp"
+#include "Evolution/DgSubcell/PrepareNeighborData.hpp"
+#include "Evolution/DgSubcell/SubcellEqualRateRegion.hpp"
+#include "Evolution/DgSubcell/Tags/MethodOrder.hpp"
+#include "Evolution/DgSubcell/Tags/ObserverCoordinates.hpp"
+#include "Evolution/DgSubcell/Tags/ObserverMesh.hpp"
+#include "Evolution/DgSubcell/Tags/TciStatus.hpp"
+#include "Evolution/DgSubcell/TwoMeshRdmpTci.hpp"
 #include "Evolution/DiscontinuousGalerkin/Actions/ApplyBoundaryCorrections.hpp"
 #include "Evolution/DiscontinuousGalerkin/Actions/ComputeTimeDerivative.hpp"
 #include "Evolution/DiscontinuousGalerkin/BackgroundGrVars.hpp"
@@ -44,7 +67,19 @@
 #include "Evolution/Systems/ForceFree/Constraints.hpp"
 #include "Evolution/Systems/ForceFree/ElectricCurrentDensity.hpp"
 #include "Evolution/Systems/ForceFree/ElectromagneticVariables.hpp"
+#include "Evolution/Systems/ForceFree/FiniteDifference/Factory.hpp"
+#include "Evolution/Systems/ForceFree/FiniteDifference/Reconstructor.hpp"
+#include "Evolution/Systems/ForceFree/FiniteDifference/Tags.hpp"
 #include "Evolution/Systems/ForceFree/MaskNeutronStarInterior.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/GhostData.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/NeighborPackagedData.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/SetInitialRdmpData.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/SwapGrTags.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/SwapMask.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TciOnDgGrid.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TciOnFdGrid.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TciOptions.hpp"
+#include "Evolution/Systems/ForceFree/Subcell/TimeDerivative.hpp"
 #include "Evolution/Systems/ForceFree/System.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "IO/Observer/Actions/RegisterEvents.hpp"
@@ -87,6 +122,7 @@
 #include "Time/Actions/SelfStartActions.hpp"
 #include "Time/AdvanceTime.hpp"
 #include "Time/ChangeSlabSize/Action.hpp"
+#include "Time/ChangeStepSize.hpp"
 #include "Time/ChangeTimeStepperOrder.hpp"
 #include "Time/CleanHistory.hpp"
 #include "Time/RecordTimeStepperData.hpp"
@@ -120,34 +156,65 @@ struct EvolutionMetavars {
 
   static constexpr bool use_dg_element_collection = false;
 
+  // The use_dg_subcell flag controls whether to use "standard" limiting (false)
+  // or a DG-FD hybrid scheme (true).
+  static constexpr bool use_dg_subcell = true;
+
   using initial_data_list = tmpl::append<ForceFree::Solutions::all_solutions,
                                          ForceFree::AnalyticData::all_data>;
 
   using analytic_variables_tags = typename system::variables_tag::tags_list;
 
   using analytic_compute = evolution::Tags::AnalyticSolutionsCompute<
-      volume_dim, analytic_variables_tags, false, initial_data_list>;
+      volume_dim, analytic_variables_tags, use_dg_subcell, initial_data_list>;
 
   using error_compute = Tags::ErrorsCompute<analytic_variables_tags>;
 
   using error_tags = db::wrap_tags_in<Tags::Error, analytic_variables_tags>;
 
-  using observe_fields = tmpl::push_back<
-      tmpl::append<typename system::variables_tag::tags_list, error_tags>,
-      domain::Tags::Coordinates<volume_dim, Frame::Grid>,
-      domain::Tags::Coordinates<volume_dim, Frame::Inertial>,
-      ForceFree::Tags::ElectricFieldCompute,
-      ForceFree::Tags::MagneticFieldCompute,
-      ForceFree::Tags::ChargeDensityCompute,
-      ForceFree::Tags::ElectricCurrentDensityCompute,
-      ForceFree::Tags::ElectricFieldDotMagneticFieldCompute,
-      ForceFree::Tags::MagneticDominanceViolationCompute>;
+  using observe_fields = tmpl::append<
+      typename system::variables_tag::tags_list, error_tags,
+      tmpl::conditional_t<
+          use_dg_subcell,
+          tmpl::list<evolution::dg::subcell::Tags::TciStatusCompute<volume_dim>,
+                     evolution::dg::subcell::Tags::ObserverCoordinatesCompute<
+                         volume_dim, Frame::ElementLogical>,
+                     evolution::dg::subcell::Tags::ObserverCoordinatesCompute<
+                         volume_dim, Frame::Grid>,
+                     evolution::dg::subcell::Tags::ObserverCoordinatesCompute<
+                         volume_dim, Frame::Inertial>>,
+          tmpl::list<::Events::Tags::ObserverCoordinatesCompute<
+                         volume_dim, Frame::ElementLogical>,
+                     ::Events::Tags::ObserverCoordinatesCompute<volume_dim,
+                                                                Frame::Grid>,
+                     ::Events::Tags::ObserverCoordinatesCompute<
+                         volume_dim, Frame::Inertial>>>,
+      tmpl::list<gr::Tags::Lapse<DataVector>, gr::Tags::Shift<DataVector, 3>,
+                 ForceFree::Tags::ElectricFieldCompute,
+                 ForceFree::Tags::MagneticFieldCompute,
+                 ForceFree::Tags::ChargeDensityCompute,
+                 ForceFree::Tags::ElectricCurrentDensityCompute,
+                 ForceFree::Tags::ElectricFieldDotMagneticFieldCompute,
+                 ForceFree::Tags::MagneticDominanceViolationCompute>>;
 
-  using non_tensor_compute_tags =
-      tmpl::list<::Events::Tags::ObserverMeshCompute<volume_dim>,
-                 ::Events::Tags::ObserverDetInvJacobianCompute<
-                     Frame::ElementLogical, Frame::Inertial>,
-                 analytic_compute, error_compute>;
+  using non_tensor_compute_tags = tmpl::append<
+      tmpl::conditional_t<
+          use_dg_subcell,
+          tmpl::list<
+              evolution::dg::subcell::Tags::ObserverMeshCompute<volume_dim>,
+              evolution::dg::subcell::Tags::ObserverInverseJacobianCompute<
+                  volume_dim, Frame::ElementLogical, Frame::Inertial>,
+              evolution::dg::subcell::Tags::
+                  ObserverJacobianAndDetInvJacobianCompute<
+                      volume_dim, Frame::ElementLogical, Frame::Inertial>>,
+          tmpl::list<::Events::Tags::ObserverMeshCompute<volume_dim>,
+                     ::Events::Tags::ObserverInverseJacobianCompute<
+                         volume_dim, Frame::ElementLogical, Frame::Inertial>,
+                     ::Events::Tags::ObserverJacobianCompute<
+                         volume_dim, Frame::ElementLogical, Frame::Inertial>,
+                     ::Events::Tags::ObserverDetInvJacobianCompute<
+                         Frame::ElementLogical, Frame::Inertial>>>,
+      tmpl::list<analytic_compute, error_compute>>;
 
   struct factory_creation
       : tt::ConformsTo<Options::protocols::FactoryCreation> {
@@ -191,6 +258,26 @@ struct EvolutionMetavars {
                        volume_dim, typename system::variables_tag::tags_list>>>;
   };
 
+  struct SubcellOptions {
+    static constexpr bool subcell_enabled = use_dg_subcell;
+    static constexpr bool subcell_enabled_at_external_boundary = false;
+
+    // We send `ghost_zone_size` cell-centered grid points for variable
+    // reconstruction, of which we need `ghost_zone_size-1` for reconstruction
+    // to the internal side of the element face, and `ghost_zone_size` for
+    // reconstruction to the external side of the element face.
+    template <typename DbTagsList>
+    static constexpr size_t ghost_zone_size(
+        const db::DataBox<DbTagsList>& box) {
+      return db::get<ForceFree::fd::Tags::Reconstructor>(box).ghost_zone_size();
+    }
+
+    using DgComputeSubcellNeighborPackagedData =
+        ForceFree::subcell::NeighborPackagedData;
+
+    using GhostVariables = ForceFree::subcell::GhostVariables;
+  };
+
   using observed_reduction_data_tags =
       observers::collect_reduction_data_tags<tmpl::flatten<tmpl::list<
           tmpl::at<typename factory_creation::factory_classes, Event>>>>;
@@ -212,6 +299,11 @@ struct EvolutionMetavars {
           volume_dim, use_dg_element_collection>,
       imex::Actions::DoImplicitStep<system>,
       Actions::MutateApply<ChangeTimeStepperOrder<system>>,
+      tmpl::conditional_t<
+          use_dg_subcell,
+          evolution::dg::subcell::Actions::TciAndRollback<
+              ForceFree::subcell::TciOnDgGrid>,
+          tmpl::list<>>,
       Actions::MutateApply<CleanHistory<system>>,
       Actions::MutateApply<imex::CleanHistory<system>>,
       Actions::MutateApply<evolution::dg::CleanMortarHistory<volume_dim>>,
@@ -219,18 +311,69 @@ struct EvolutionMetavars {
       dg::Actions::SpectralFilter<volume_dim,
                                   typename system::variables_tag::tags_list>>>;
 
-  using const_global_cache_tags =
-      tmpl::list<evolution::initial_data::Tags::InitialData,
-                 ForceFree::Tags::KappaPsi, ForceFree::Tags::KappaPhi,
-                 ForceFree::Tags::ParallelConductivity>;
+  using dg_subcell_step_actions = tmpl::flatten<tmpl::list<
+      evolution::dg::subcell::Actions::SelectNumericalMethod,
+
+      Actions::Label<evolution::dg::subcell::Actions::Labels::BeginDg>,
+      dg_step_actions,
+      Actions::Goto<evolution::dg::subcell::Actions::Labels::EndOfSolvers>,
+
+      Actions::Label<evolution::dg::subcell::Actions::Labels::BeginSubcell>,
+      Actions::MutateApply<ChangeStepSize<tmpl::list<>>>,
+      Actions::MutateApply<evolution::dg::subcell::BackgroundGrVars<
+          system, EvolutionMetavars, false>>,
+      evolution::dg::subcell::Actions::SendDataForReconstruction<
+          volume_dim, ForceFree::subcell::GhostVariables,
+          use_dg_element_collection>,
+      evolution::dg::subcell::Actions::ReceiveDataForReconstruction<volume_dim>,
+      Actions::Label<
+          evolution::dg::subcell::Actions::Labels::BeginSubcellAfterDgRollback>,
+      Actions::MutateApply<evolution::dg::subcell::BackgroundGrVars<
+          system, EvolutionMetavars, true>>,
+      Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
+      Actions::MutateApply<ForceFree::subcell::SwapMask>,
+      evolution::dg::subcell::fd::Actions::TakeTimeStep<
+          ForceFree::subcell::TimeDerivative>,
+      Actions::MutateApply<RecordTimeStepperData<system>>,
+      imex::Actions::RecordTimeStepperData<system>,
+      evolution::Actions::RunEventsAndDenseTriggers<
+          tmpl::list<imex::ImplicitDenseOutput<system>>>,
+      Actions::MutateApply<UpdateU<system>>,
+      imex::Actions::DoImplicitStep<system>,
+      Actions::MutateApply<CleanHistory<system>>,
+      Actions::MutateApply<imex::CleanHistory<system>>,
+      Actions::MutateApply<evolution::dg::CleanMortarHistory<volume_dim>>,
+
+      evolution::dg::subcell::Actions::TciAndSwitchToDg<
+          ForceFree::subcell::TciOnFdGrid>,
+      Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
+      Actions::MutateApply<ForceFree::subcell::SwapMask>,
+      Actions::Label<evolution::dg::subcell::Actions::Labels::EndOfSolvers>>>;
+
+  using step_actions =
+      tmpl::conditional_t<use_dg_subcell, dg_subcell_step_actions,
+                          dg_step_actions>;
+
+  using const_global_cache_tags = tmpl::list<
+      evolution::initial_data::Tags::InitialData,
+      tmpl::conditional_t<use_dg_subcell,
+                          tmpl::list<ForceFree::fd::Tags::Reconstructor,
+                                     ForceFree::subcell::Tags::TciOptions>,
+                          tmpl::list<>>,
+      ForceFree::Tags::KappaPsi, ForceFree::Tags::KappaPhi,
+      ForceFree::Tags::ParallelConductivity>;
 
   using dg_registration_list =
       tmpl::list<observers::Actions::RegisterEventsWithObservers>;
 
-  using equal_rate_regions =
-      tmpl::list<evolution::dg::NonconformingEqualRateRegions<volume_dim>>;
+  using equal_rate_regions = tmpl::flatten<
+      tmpl::list<evolution::dg::NonconformingEqualRateRegions<volume_dim>,
+                 tmpl::conditional_t<
+                     use_dg_subcell,
+                     evolution::dg::subcell::SubcellEqualRateRegion<volume_dim>,
+                     tmpl::list<>>>>;
 
-  using initialization_actions = tmpl::list<
+  using initialization_actions = tmpl::flatten<tmpl::list<
       Initialization::Actions::InitializeItems<
           Initialization::TimeStepping<EvolutionMetavars, ImexTimeStepper,
                                        false, true>,
@@ -240,11 +383,32 @@ struct EvolutionMetavars {
       Initialization::Actions::ConservativeSystem<system>,
       Initialization::Actions::InitializeItems<
           Initialization::TimeStepperHistory<system>>,
-      evolution::Initialization::Actions::SetVariables<
-          domain::Tags::Coordinates<3, Frame::ElementLogical>>,
 
-      Initialization::Actions::AddSimpleTags<
-          ForceFree::MaskNeutronStarInterior<EvolutionMetavars, false>>,
+      tmpl::conditional_t<
+          use_dg_subcell,
+          tmpl::list<
+              evolution::dg::subcell::Actions::SetSubcellGrid<volume_dim,
+                                                              system, false>,
+              Initialization::Actions::AddSimpleTags<
+                  evolution::dg::subcell::BackgroundGrVars<
+                      system, EvolutionMetavars, false>,
+                  ForceFree::MaskNeutronStarInterior<EvolutionMetavars, true>>,
+
+              Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
+
+              evolution::dg::subcell::Actions::SetAndCommunicateInitialRdmpData<
+                  volume_dim, ForceFree::subcell::SetInitialRdmpData>,
+              evolution::dg::subcell::Actions::ComputeAndSendTciOnInitialGrid<
+                  volume_dim, system, ForceFree::subcell::TciOnFdGrid>,
+              evolution::dg::subcell::Actions::SetInitialGridFromTciData<
+                  volume_dim, system>,
+              Actions::MutateApply<ForceFree::subcell::SwapGrTags>,
+              Actions::MutateApply<ForceFree::subcell::SwapMask>>,
+          tmpl::list<evolution::Initialization::Actions::SetVariables<
+                         domain::Tags::Coordinates<3, Frame::ElementLogical>>,
+                     Initialization::Actions::AddSimpleTags<
+                         ForceFree::MaskNeutronStarInterior<EvolutionMetavars,
+                                                            false>>>>,
 
       // note : imex::Initialize mutator needs to be executed after
       //        the TimeStepperHistory action
@@ -265,7 +429,7 @@ struct EvolutionMetavars {
       Initialization::Actions::InitializeItems<
           evolution::dg::Initialization::SpectralFilters<
               volume_dim, typename system::variables_tag::tags_list>>,
-      Parallel::Actions::TerminatePhase>;
+      Parallel::Actions::TerminatePhase>>;
 
   using dg_element_array_component = DgElementArray<
       EvolutionMetavars,
@@ -289,7 +453,7 @@ struct EvolutionMetavars {
 
           Parallel::PhaseActions<
               Parallel::Phase::InitializeTimeStepperHistory,
-              SelfStart::self_start_procedure<dg_step_actions, system>>,
+              SelfStart::self_start_procedure<step_actions, system>>,
 
           Parallel::PhaseActions<
               Parallel::Phase::Evolve,
@@ -299,7 +463,7 @@ struct EvolutionMetavars {
                   evolution::Actions::RunEventsAndTriggers<
                       Triggers::WhenToCheck::AtSlabs>,
                   Actions::ChangeSlabSize,
-                  evolution::dg::Actions::ChangeFixedLtsRatio, dg_step_actions,
+                  evolution::dg::Actions::ChangeFixedLtsRatio, step_actions,
                   Actions::MutateApply<AdvanceTime<>>,
                   PhaseControl::Actions::ExecutePhaseChange>>>>>;
 
