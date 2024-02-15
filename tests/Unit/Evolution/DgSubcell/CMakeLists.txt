@@ -39,6 +39,7 @@ set(LIBRARY_SOURCES
   Test_Reconstruction.cpp
   Test_ReconstructionMethod.cpp
   Test_ReconstructionOrder.cpp
+  Test_ResizeImexTags.cpp
   Test_SetInterpolators.cpp
   Test_SliceData.cpp
   Test_SliceTensor.cpp
