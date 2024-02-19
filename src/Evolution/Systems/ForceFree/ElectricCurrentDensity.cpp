@@ -102,9 +102,11 @@ void tilde_j_impl(
     }
   }
 
+  const double epsilon = std::max(1.0e-50, 1.0e-15 * min(get(tilde_b_squared)));
+
   // overall factor
   for (size_t i = 0; i < 3; ++i) {
-    (*tilde_j).get(i) *= get(lapse) / get(tilde_b_squared);
+    (*tilde_j).get(i) *= get(lapse) / (get(tilde_b_squared) + epsilon);
   }
 
   // If there are grid points that needs to be masked (for enforcing the MHD
