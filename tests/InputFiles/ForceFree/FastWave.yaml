@@ -10,9 +10,6 @@ Testing:
 Parallelization:
   ElementDistribution: NumGridPoints
 
-ResourceInfo:
-  AvoidGlobalProc0: false
-
 InitialData: &InitialData
   FastWave:
 
@@ -22,9 +19,9 @@ Evolution:
   MinimumTimeStep: 1e-7
   TimeStepper:
     Rk3PareschiSsp4
-    # Heun2
-  ImexMode: Implicit
-  ImexImplicitSolveTolerance: 1.0e-10
+  Imex:
+    Mode: Implicit
+    SolveTolerance: 1.0e-10
 
 Observers:
   VolumeFileName: "ForceFreeFastWaveVolume"
@@ -34,10 +31,10 @@ Observers:
 EvolutionSystem:
   ForceFree:
     ConstraintDamping:
-      KappaPsi: 1.0
+      KappaPsi: 0.0
       KappaPhi: 1.0
     ForceFreeCurrent:
-      ParallelConductivity: 1e4
+      ParallelConductivity: 0.0
 
 DomainCreator:
   Brick:
@@ -45,13 +42,20 @@ DomainCreator:
     UpperBound: [0.5, 0.1, 0.1]
     Distribution: [Linear, Linear, Linear]
     InitialRefinement: [4, 0, 0]
-    InitialGridPoints: [5, 5, 5]
+    InitialGridPoints: [4, 4, 4]
     TimeDependence: None
     BoundaryConditions:
       - DirichletAnalytic:
           AnalyticPrescription: *InitialData
       - Periodic
       - Periodic
+
+Filtering:
+  ExpFilter0:
+    Alpha: 12
+    HalfPower: 32
+    Enable: false
+    BlocksToFilter: All
 
 SpatialDiscretization:
   BoundaryCorrection:
@@ -60,38 +64,33 @@ SpatialDiscretization:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
     Subcell:
-      RdmpDelta0: 1.0e-2
-      RdmpEpsilon: 1.0e-2
-      PerssonExponent: 3.0
+      RdmpDelta0: 1.0e-0
+      RdmpEpsilon: 1.0e-0
+      PerssonExponent: 4.0
       InitialData:
         RdmpDelta0: 1.0e-2
         RdmpEpsilon: 1.0e-2
         PerssonExponent: 3.0
-      AlwaysUseSubcells: False
+      AlwaysUseSubcells: false
       SubcellToDgReconstructionMethod: DimByDim
       UseHalo: false
-      OnlyDgBlocksAndGroups: None
+      OnlyDgBlocksAndGroups: [Brick]
       FiniteDifferenceDerivativeOrder: 2
     TciOptions:
-      AlphaEmFields: 3.5
-      CutoffTildeQ: 1.0e10
-      CutoffTildeJ: 1.0e10
-      MonitorNormalizedJForCutoff: false
-      CutoffHeating: 1.0e10
-      MonitorNormalizedHeatingForCutoff: false
+      TildeQCutoff: DoNotCheckTildeQ
+      AlphaMagE: DoNotCheckTildeE
+      AlphaMagB: 4.0
+      DeltaAlpha: 1.0
+      NumberOfHighestModes: 1
+      UseUmaxInsteadOfNorm: false
   SubcellSolver:
     Reconstructor:
       # MonotonisedCentral
-      # Wcns5z:
-      #   NonlinearWeightExponent: 2
-      #   Epsilon: 1e-15
-      #   FallbackReconstructor: None
-      #   MaxNumberOfExtrema: 0
-      AdaptiveOrder:
-        Alpha9: None
-        Alpha7: None
-        Alpha5: 4.0
-        LowOrderReconstructor: MonotonisedCentral
+      Wcns5z:
+        NonlinearWeightExponent: 2
+        Epsilon: 1e-15
+        FallbackReconstructor: None
+        MaxNumberOfExtrema: 2
 
 EventsAndTriggersAtSlabs:
   # - Trigger:
@@ -103,7 +102,7 @@ EventsAndTriggersAtSlabs:
   - Trigger:
       Slabs:
         Specified:
-          Values: [80]
+          Values: [400]
     Events:
       - Completion
   - Trigger:
@@ -115,11 +114,11 @@ EventsAndTriggersAtSlabs:
           DelayChange: 0
           StepChoosers:
             - Cfl:
-                SafetyFactor: 0.4
+                SafetyFactor: 0.3
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 10
+          Interval: 20
           Offset: 0
     Events:
       - ObserveTimeStep:
@@ -147,7 +146,7 @@ EventsAndTriggersAtSlabs:
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 2
+          Interval: 10
           Offset: 0
     Events:
       - ObserveFields:
@@ -156,7 +155,7 @@ EventsAndTriggersAtSlabs:
               ElectricField, MagneticField,
               ChargeDensity,
               ElectricCurrentDensity,
-              Error(TildeE), Error(TildeB),
+              # Error(TildeE), Error(TildeB),
               ElectricFieldDotMagneticField,
               TildePhi, TildePsi,
               TciStatus,
@@ -200,13 +199,20 @@ ResourceInfo:
   Singletons: Auto
 
 InterpolationTargets:
-  TotalMagneticFluxOnSphere:
-    LMax: 30
+  TotalMagneticFluxOnUpperHemisphere:
+    LMax: 3
     Radius: 2.0
     Center: [0, 0, 0]
     AngularOrdering: Strahlkorper
   PoyntingFluxOnSphere:
-    LMax: 50
+    LMax: 3
     Radius: 2.0
     Center: [0, 0, 0]
     AngularOrdering: Strahlkorper
+
+# Filtering:
+#   ExpFilter0:
+#     Alpha: 1.0
+#     HalfPower: 1
+#     Enable: false
+#     BlocksToFilter: All
