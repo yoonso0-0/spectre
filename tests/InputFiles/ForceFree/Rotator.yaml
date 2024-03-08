@@ -6,24 +6,25 @@ Testing:
   Check: parse;execute
 
 ---
+Parallelization:
+  ElementDistribution: NumGridPoints
 
 InitialData: &InitialData
   RotatingDipole:
     VectorPotentialAmplitude: 1.0
     Varpi0 : 1.0
     Delta: 0.1
-    AngularVelocity : 0.1
-    TiltAngle: 0.0
+    AngularVelocity : 0.0
+    TiltAngle: 0.7
 
 Evolution:
   InitialTime: 0.0
-  InitialTimeStep: 0.0005
+  InitialTimeStep: 0.0122991
   TimeStepper:
     Rk3PareschiSsp4
-    # Rk3Kennedy
-  ImexMode: Implicit
-  ImexImplicitSolveTolerance: 1.0e-10
-  # TimeStepper: Rk3HesthavenSsp
+  Imex:
+    Mode: Implicit
+    SolveTolerance: 1.0e-10
 
 Observers:
   VolumeFileName: "ForceFreeRotatorLev5Volume"
@@ -38,44 +39,47 @@ EvolutionSystem:
     ForceFreeCurrent:
       ParallelConductivity: 1e2
 
+# DomainCreator:
+#   Brick:
+#     # LowerBound: [0, -0.125, -2]
+#     # UpperBound: [2, 0.125, 2]
+#     # InitialRefinement: [3, 0, 4]
+#     LowerBound: [-3, -3, -3]
+#     UpperBound: [3, 3, 3]
+#     # LowerBound: [-3.4, -3.4, -3.4]
+#     # UpperBound: [3.4, 3.4, 3.4]
+#     InitialRefinement: [2, 2, 2]
+#     InitialGridPoints: [3, 3, 3]
+#     TimeDependence: None
+#     # BoundaryConditionInX: &Analytic
+#     #   DirichletAnalytic:
+#     #     AnalyticPrescription: *InitialData
+#     # BoundaryConditionInY: *Analytic
+#     # BoundaryConditionInZ: *Analytic
+#     BoundaryConditionInX: NoIncomingPoynting
+#     BoundaryConditionInY: NoIncomingPoynting
+#     BoundaryConditionInZ: NoIncomingPoynting
+
 DomainCreator:
-  Brick:
-    # LowerBound: [0, -0.125, -2]
-    # UpperBound: [2, 0.125, 2]
-    # InitialRefinement: [3, 0, 4]
-    LowerBound: [-2, -2, -2]
-    UpperBound: [2, 2, 2]
-    # LowerBound: [-3.4, -3.4, -3.4]
-    # UpperBound: [3.4, 3.4, 3.4]
-    InitialRefinement: [2, 2, 2]
-    InitialGridPoints: [4, 4, 4]
-    TimeDependence: None
-    BoundaryConditionInX: &Analytic
+  Sphere:
+    InnerRadius: 0.5
+    OuterRadius: 2.0
+    Interior:
+      FillWithSphericity: 0.9
+    InitialRefinement:
+      InnerCube: [1, 1, 1]
+      Shell0 : [1, 1, 1]
+      # Shell1 : [1]
+    InitialGridPoints: 6
+    UseEquiangularMap: true
+    EquatorialCompression: None
+    RadialPartitioning: []
+    RadialDistribution: [Linear]
+    WhichWedges: All
+    TimeDependentMaps: None
+    OuterBoundaryCondition:
       DirichletAnalytic:
         AnalyticPrescription: *InitialData
-    BoundaryConditionInY: *Analytic
-    BoundaryConditionInZ: *Analytic
-
-# DomainCreator:
-#   Sphere:
-#     InnerRadius: 0.7
-#     OuterRadius: 3.0
-#     Interior:
-#       FillWithSphericity: 0.0
-#     InitialRefinement:
-#       InnerCube: [2, 2, 2]
-#       Shell0 : [2, 2, 2]
-#       # Shell1 : [1]
-#     InitialGridPoints: 4
-#     UseEquiangularMap: true
-#     EquatorialCompression: None
-#     RadialPartitioning: []
-#     RadialDistribution: [Linear]
-#     WhichWedges: All
-#     TimeDependentMaps: None
-#     OuterBoundaryCondition:
-#       DirichletAnalytic:
-#         AnalyticPrescription: *InitialData
 
 SpatialDiscretization:
   BoundaryCorrection:
@@ -84,20 +88,22 @@ SpatialDiscretization:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
     Subcell:
-      RdmpDelta0: 1.0e-1
-      RdmpEpsilon: 1.0e-1
-      PerssonExponent: 2.0
-      InitialData:
-        RdmpDelta0: 1.0e-7
-        RdmpEpsilon: 1.0e-3
-        PerssonExponent: 3.0
+      PerssonTci:
+        Exponent: 4.0
+        NumHighestModes: 1
+      RdmpDelta0: 1.0e0
+      RdmpEpsilon: 1.0e0
       AlwaysUseSubcells: false
       SubcellToDgReconstructionMethod: DimByDim
       UseHalo: false
-      OnlyDgBlocksAndGroups: None
-      FiniteDifferenceDerivativeOrder: 2
+      OnlyDgBlocksAndGroups: []
+      FiniteDifferenceDerivativeOrder: 4
     TciOptions:
       TildeQCutoff: DoNotCheckTildeQ
+      AlphaMagE: DoNotCheckTildeE
+      AlphaMagB: 3.0
+      DeltaAlpha: 1.0
+      UseUmaxInsteadOfNorm: false
   SubcellSolver:
     Reconstructor:
       # MonotonisedCentral
@@ -117,7 +123,7 @@ EventsAndTriggers:
   - Trigger:
       Slabs:
         Specified:
-          Values: [5]
+          Values: [0]
     Events:
       - Completion
   - Trigger:
@@ -146,8 +152,8 @@ EventsAndTriggers:
           Interval: 1
           Offset: 0
     Events:
-      - TotalMagneticFluxOnSphere
-      - TotalPoyntingFluxOnSphere
+      # - TotalMagneticFluxOnSphere
+      # - PoyntingFluxOnSphere
       - ObserveFields:
           SubfileName: VolumeData
           VariablesToObserve: [
@@ -203,7 +209,6 @@ EventsAndDenseTriggers:
   #         InterpolateToMesh: None
   #         CoordinatesFloatingPointType: Float
   #         FloatingPointTypes: [Float]
-  #         OverrideObservationValue: None
 
 # EventsRunAtCleanup:
 #   Events:
@@ -224,7 +229,7 @@ EventsAndDenseTriggers:
 #   ObservationValue: -1.0
 
 InterpolationTargets:
-  TotalMagneticFluxOnSphere:
+  TotalMagneticFluxOnUpperHemisphere:
     LMax: 30
     Radius: 2.0
     Center: [0, 0, 0]
@@ -234,14 +239,16 @@ InterpolationTargets:
     Radius: 2.0
     Center: [0, 0, 0]
     AngularOrdering: Strahlkorper
-  TotalPoyntingFluxOnSphere:
-    LMax: 50
-    Radius: 1.1
-    Center: [0, 0, 0]
-    AngularOrdering: Strahlkorper
 
 PhaseChangeAndTriggers:
 
 ResourceInfo:
   AvoidGlobalProc0: false
   Singletons: Auto
+
+Filtering:
+  ExpFilter0:
+    Alpha: 1.0
+    HalfPower: 1
+    Enable: false
+    BlocksToFilter: All

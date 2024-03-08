@@ -31,10 +31,11 @@ EvolutionSystem:
     ConstraintDamping:
       KappaPsi: 1.0
       KappaPhi: 1.0
+      KappaBoundary: 0.0
     ForceFreeCurrent:
-      ParallelConductivity: 1e5
+      ParallelConductivity: 0.0
 
-Filtering:
+# Filtering:
   # ExpFilter0:
   #   Alpha: 36.0
   #   HalfPower: 24
@@ -56,19 +57,19 @@ Filtering:
 
 DomainCreator:
   Sphere:
-    InnerRadius: 2.0
-    OuterRadius: 8
+    InnerRadius: 1.7
+    OuterRadius: 4
     Interior:
       ExciseWithBoundaryCondition:
-        DirichletAnalytic:
-          AnalyticPrescription: *InitialData
+        # DirichletAnalytic:
+        #   AnalyticPrescription: *InitialData
+        DemandOutgoingCharSpeeds
     InitialRefinement:
-      Shell0: [2, 2, 2]
-      Shell1: [1, 1, 1]
-    InitialGridPoints: 3
+      Shell0: [0, 0, 0]
+    InitialGridPoints: 5
     UseEquiangularMap: false
     EquatorialCompression: None
-    RadialPartitioning: [4.0]
+    RadialPartitioning: []
     RadialDistribution: Linear
     WhichWedges: All
     TimeDependentMaps: None
@@ -83,22 +84,20 @@ SpatialDiscretization:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
     Subcell:
-      RdmpDelta0: 1.0e-1
-      RdmpEpsilon: 1.0e-1
-      PerssonExponent: 2.0
+      RdmpDelta0: 1.0e-0
+      RdmpEpsilon: 1.0e-0
+      PerssonExponent: 4.0
       InitialData:
         RdmpDelta0: 1.0e-7
         RdmpEpsilon: 1.0e-3
-        PerssonExponent: 4.0
+        PerssonExponent: 3.0
       AlwaysUseSubcells: false
       SubcellToDgReconstructionMethod: DimByDim
       UseHalo: false
-      OnlyDgBlocksAndGroups: None
+      OnlyDgBlocksAndGroups: [Shell0]
       FiniteDifferenceDerivativeOrder: 2
     TciOptions:
-      CutoffTildeQ: 1.0e-2
-      CutoffTildeJ: 1.0e-2
-      CutoffHeating: 1.0e-5
+      TildeQCutoff: DoNotCheckTildeQ
   SubcellSolver:
     Reconstructor:
       # MonotonisedCentral
@@ -109,18 +108,18 @@ SpatialDiscretization:
         MaxNumberOfExtrema: 2
 
 EventsAndTriggers:
-  # - Trigger:
-  #     TimeCompares:
-  #       Comparison: GreaterThanOrEqualTo
-  #       Value: 0.06
-  #   Events:
-  #     - Completion
   - Trigger:
-      Slabs:
-        Specified:
-          Values: [1]
+      TimeCompares:
+        Comparison: GreaterThanOrEqualTo
+        Value: 0.4
     Events:
       - Completion
+  # - Trigger:
+      # Slabs:
+        # Specified:
+          # Values: [1]
+    # Events:
+      # - Completion
   - Trigger:
       Slabs:
         Specified:
@@ -131,77 +130,107 @@ EventsAndTriggers:
           StepChoosers:
             - Cfl:
                 SafetyFactor: 0.3
-  # - Trigger:
-  #     Slabs:
-  #       EvenlySpaced:
-  #         Interval: 10
-  #         Offset: 0
-  #   Events:
-  #     - ObserveTimeStep:
-  #         SubfileName: time_steps
-  #         PrintTimeToTerminal: true
-  #         ObservePerCore: false
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 1
+          Interval: 2
           Offset: 0
     Events:
-      # - MagneticFluxThroughSphere
-      - PoyntingFluxOnSphere
+      - ObserveTimeStep:
+          SubfileName: time_steps
+          PrintTimeToTerminal: true
+          ObservePerCore: false
+  # - Trigger:
+  #     Slabs:
+  #       EvenlySpaced:
+  #         Interval: 1
+  #         Offset: 0
+  #   Events:
+  #     # - MagneticFluxThroughSphere
+  #     # - PoyntingFluxOnSphere
+  #     # - ObserveFields:
+  #     #     SubfileName: VolumeData
+  #     #     VariablesToObserve: [
+  #     #         # ElectricField, MagneticField,
+  #     #         TildeE, TildeB,
+  #     #         Error(TildeE), Error(TildeB),
+  #     #         ChargeDensity,
+  #     #         TildePhi, TildePsi,
+  #     #         # SpatialCurrentDensity,
+  #     #         ElectricFieldDotMagneticField,
+  #     #         # NsInteriorSpatialVelocity,
+  #     #         # TciStatus,
+  #     #         # NsInteriorMask,
+  #     #         Lapse, Shift,
+  #     #       ]
+  #     #     InterpolateToMesh: None
+  #     #     CoordinatesFloatingPointType: Float
+  #     #     FloatingPointTypes: [Float]
+  #     - ObserveNorms:
+  #         SubfileName: ErrorNorm
+  #         TensorsToObserve:
+  #           # - Name: TildeE
+  #           #   NormType: L2Norm
+  #           #   Components: Sum
+  #           - Name: Error(TildeE)
+  #             NormType: L2Norm
+  #             Components: Sum
+  #           - Name: Error(TildeB)
+  #             NormType: L2Norm
+  #             Components: Sum
+  #           - Name: ElectricFieldDotMagneticField
+  #             NormType: L2Norm
+  #             Components: Sum
+
+EventsAndDenseTriggers:
+  - Trigger:
+      Times:
+        Specified:
+          Values: [0.1, 0.2, 0.3]
+    Events:
       - ObserveFields:
           SubfileName: VolumeData
           VariablesToObserve: [
-              # ElectricField, MagneticField,
-              TildeE, TildeB,
-              Error(TildeE), Error(TildeB),
-              ChargeDensity,
-              TildeJ,
-              TildePhi, TildePsi,
-              # SpatialCurrentDensity,
-              ElectricFieldDotMagneticField,
-              # NsInteriorSpatialVelocity,
-              # TciStatus,
-              # NsInteriorMask,
-              Lapse, Shift,
+            ElectricField,
+            MagneticField,
+            Error(TildeE),
+            Error(TildeB),
+            ElectricFieldDotMagneticField,
+            # TciStatus
             ]
           InterpolateToMesh: None
           CoordinatesFloatingPointType: Float
           FloatingPointTypes: [Float]
-
-EventsAndDenseTriggers:
-  # - Trigger:
-  #     Times:
-  #       Specified:
-  #         Values: [0.0, 0.01, 0.02, 0.03, 0.04]
-  #   Events:
-  #     - ObserveFields:
-  #         SubfileName: VolumeData
-  #         VariablesToObserve: [
-  #           ElectricField,
-  #           MagneticField,
-  #           # ChargeDensity,
-  #           # SpatialCurrentDensity,
-  #           # TildeQ, Error(TildeQ),
-  #           # SpatialCurrentDensity,
-  #           # MagneticDivergenceCleaningField,
-  #           # ElectricDivergenceCleaningField,
-  #           ElectricFieldDotMagneticField
-  #           ]
-  #         InterpolateToMesh: None
-  #         CoordinatesFloatingPointType: Float
-  #         FloatingPointTypes: [Float]
-  #         OverrideObservationValue: None
+      - ObserveNorms:
+          SubfileName: ErrorNorm
+          TensorsToObserve:
+            # - Name: TildeE
+            #   NormType: L2Norm
+            #   Components: Sum
+            - Name: Error(TildeE)
+              NormType: L2Norm
+              Components: Sum
+            - Name: Error(TildeB)
+              NormType: L2Norm
+              Components: Sum
+            - Name: ElectricFieldDotMagneticField
+              NormType: L2Norm
+              Components: Sum
 
 InterpolationTargets:
-  # MagneticFluxThroughSphere:
-  #   LMax: 30
-  #   Radius: 2.0
-  #   Center: [0, 0, 0]
-  #   AngularOrdering: Strahlkorper
+  TotalMagneticFluxOnUpperHemisphere:
+    LMax: 30
+    Radius: 2.0
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
   PoyntingFluxOnSphere:
     LMax: 50
     Radius: 2.0
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
+  TotalPoyntingFluxOnSphere:
+    LMax: 50
+    Radius: 1.1
     Center: [0, 0, 0]
     AngularOrdering: Strahlkorper
 
@@ -209,3 +238,11 @@ PhaseChangeAndTriggers:
 
 ResourceInfo:
   AvoidGlobalProc0: false
+  Singletons: Auto
+
+# Filtering:
+#   ExpFilter0:
+#     Alpha: 1.0
+#     HalfPower: 1
+#     Enable: false
+#     BlocksToFilter: All
