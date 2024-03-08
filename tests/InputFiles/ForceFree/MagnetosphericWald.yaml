@@ -9,41 +9,45 @@ Testing:
 
 InitialData: &InitialData
   MagnetosphericWald:
-    Spin: 0.99
+    Spin: 0.0
 
 Evolution:
   InitialTime: 0.0
   InitialTimeStep: 0.0005
   TimeStepper:
     Rk3PareschiSsp4
-    # Rk3Kennedy
   ImexMode: Implicit
-  # TimeStepper: Rk3HesthavenSsp
+  ImexImplicitSolveTolerance: 1.0e-10
 
 Observers:
   VolumeFileName: "ForceFreeWaldSolutionLev5Volume"
   ReductionFileName: "ForceFreeWaldSolutionLev5Reductions"
+  SurfaceFileName: "Surface"
 
 EvolutionSystem:
   ForceFree:
     ConstraintDamping:
       KappaPsi: 1.0
       KappaPhi: 1.0
+      KappaBoundary: 1.0
     ForceFreeCurrent:
-      ParallelConductivity: 0.0
+      ParallelConductivity: 10.0
 
 # DomainCreator:
-#   Brick:
-#     LowerBound: [-3, -3, -3]
-#     UpperBound: [3, 3, 3]
-#     InitialRefinement: [3, 3, 3]
-#     InitialGridPoints: [4, 4, 4]
-#     TimeDependence: None
-#     BoundaryConditionInX: &Analytic
+#   AlignedLattice:
+#     BlockBounds: [
+#       [-10, -1, -0.5, 0.5, 1, 10],
+#       [-10, -1, -0.5, 0.5, 1, 10],
+#       [-10, -1, -0.5, 0.5, 1, 10],
+#       ]
+#     InitialLevels: [1, 1, 1]
+#     InitialGridPoints: [2, 2, 2]
+#     RefinedLevels: []
+#     RefinedGridPoints: []
+#     BlocksToExclude: []
+#     BoundaryCondition:
 #       DirichletAnalytic:
 #         AnalyticPrescription: *InitialData
-#     BoundaryConditionInY: *Analytic
-#     BoundaryConditionInZ: *Analytic
 
 DomainCreator:
   Sphere:
@@ -52,17 +56,18 @@ DomainCreator:
     Interior:
       ExciseWithBoundaryCondition:
         DemandOutgoingCharSpeeds
-    InitialRefinement: 3
-    InitialGridPoints: 2
+        # Nonreflecting
+    InitialRefinement: 2
+    InitialGridPoints: 4
     UseEquiangularMap: false
     EquatorialCompression: None
     RadialPartitioning: []
-    RadialDistribution: Logarithmic
+    RadialDistribution: Linear
     WhichWedges: All
     TimeDependentMaps: None
-    OuterBoundaryCondition:
-      DirichletAnalytic:
-        AnalyticPrescription: *InitialData
+    OuterBoundaryCondition: NoIncomingPoynting
+      # DirichletAnalytic:
+        # AnalyticPrescription: *InitialData
 
 SpatialDiscretization:
   BoundaryCorrection:
@@ -70,30 +75,29 @@ SpatialDiscretization:
   DiscontinuousGalerkin:
     Formulation: StrongInertial
     Quadrature: GaussLobatto
-  #   Subcell:
-  #     RdmpDelta0: 1.0e-1
-  #     RdmpEpsilon: 1.0e-1
-  #     PerssonExponent: 2.0
-  #     InitialData:
-  #       RdmpDelta0: 1.0e-7
-  #       RdmpEpsilon: 1.0e-3
-  #       PerssonExponent: 4.0
-  #     AlwaysUseSubcells: false
-  #     SubcellToDgReconstructionMethod: DimByDim
-  #     UseHalo: false
-  #     OnlyDgBlocksAndGroups: None
-  #     FiniteDifferenceDerivativeOrder: 2
-  #   TciOptions:
-  #     CutoffTildeQ: 1.0e-9
-  #     CutoffTildeJ: 1.0e-9
-  # SubcellSolver:
-  #   Reconstructor:
-  #     # MonotonisedCentral
-  #     Wcns5z:
-  #       NonlinearWeightExponent: 2
-  #       Epsilon: 1e-15
-  #       FallbackReconstructor: None
-  #       MaxNumberOfExtrema: 2
+    Subcell:
+      RdmpDelta0: 1.0e-0
+      RdmpEpsilon: 1.0e-0
+      PerssonExponent: 3.0
+      InitialData:
+        RdmpDelta0: 1.0e-7
+        RdmpEpsilon: 1.0e-3
+        PerssonExponent: 3.0
+      AlwaysUseSubcells: false
+      SubcellToDgReconstructionMethod: DimByDim
+      UseHalo: false
+      OnlyDgBlocksAndGroups: []
+      FiniteDifferenceDerivativeOrder: 2
+    TciOptions:
+      TildeQCutoff: DoNotCheckTildeQ
+  SubcellSolver:
+    Reconstructor:
+      MonotonisedCentral
+      # Wcns5z:
+      #   NonlinearWeightExponent: 2
+      #   Epsilon: 1e-15
+      #   FallbackReconstructor: None
+      #   MaxNumberOfExtrema: 2
 
 EventsAndTriggers:
   # - Trigger:
@@ -105,7 +109,7 @@ EventsAndTriggers:
   - Trigger:
       Slabs:
         Specified:
-          Values: [50]
+          Values: [30]
     Events:
       - Completion
   - Trigger:
@@ -118,42 +122,41 @@ EventsAndTriggers:
           StepChoosers:
             - Cfl:
                 SafetyFactor: 0.3
+  # - Trigger:
+  #     Slabs:
+  #       EvenlySpaced:
+  #         Interval: 10
+  #         Offset: 0
+  #   Events:
+  #     - ObserveTimeStep:
+  #         SubfileName: time_steps
+  #         PrintTimeToTerminal: true
+  #         ObservePerCore: false
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 10
-          Offset: 0
-    Events:
-      - ObserveTimeStep:
-          SubfileName: time_steps
-          PrintTimeToTerminal: true
-          ObservePerCore: false
-  - Trigger:
-      Slabs:
-        EvenlySpaced:
-          Interval: 2
+          Interval: 5
           Offset: 0
     Events:
       - ObserveFields:
           SubfileName: VolumeData
           VariablesToObserve: [
-              # ElectricField, MagneticField,
-              TildeE, TildeB,
-              # ChargeDensity,
-              TildeJ,
-              TildePhi, TildePsi,
-              TildeQ,
+              ElectricField, MagneticField,
+              # TildeE, TildeB,
+              ChargeDensity,
+              ElectricCurrentDensity,
+              # TildePhi, TildePsi,
+              # TildeQ,
               # SpatialCurrentDensity,
               ElectricFieldDotMagneticField,
               # NsInteriorSpatialVelocity,
               # TciStatus,
               # NsInteriorMask,
-              Lapse, Shift,
+              # Lapse, Shift,
             ]
           InterpolateToMesh: None
           CoordinatesFloatingPointType: Float
           FloatingPointTypes: [Float]
-          OverrideObservationValue: None
 
 EventsAndDenseTriggers:
   # - Trigger:
@@ -181,14 +184,23 @@ EventsAndDenseTriggers:
 
 PhaseChangeAndTriggers:
 
+InterpolationTargets:
+  TotalMagneticFluxOnUpperHemisphere:
+    LMax: 30
+    Radius: 2.0
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
+  PoyntingFluxOnSphere:
+    LMax: 50
+    Radius: 2.0
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
+  TotalPoyntingFluxOnSphere:
+    LMax: 50
+    Radius: 1.1
+    Center: [0, 0, 0]
+    AngularOrdering: Strahlkorper
+
 ResourceInfo:
   AvoidGlobalProc0: false
-
-Limiter:
-  Minmod:
-    Type: LambdaPiN
-    # The optimal value of the TVB constant is problem-dependent.
-    # This test uses 0 to favor robustness over accuracy.
-    TvbConstant: 1.0
-    # disable limiter for FFE runs
-    DisableForDebugging: true
+  Singletons: Auto
