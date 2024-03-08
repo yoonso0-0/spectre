@@ -13,12 +13,12 @@ InitialData: &InitialData
 
 Evolution:
   InitialTime: 0.0
-  InitialTimeStep: 0.001
+  InitialTimeStep: 0.0122991
   TimeStepper:
-    # Rk3Kennedy
     Rk3PareschiSsp4
-  ImexMode: Implicit
-  ImexImplicitSolveTolerance: 1.0e-10
+  Imex:
+    Mode: Implicit
+    SolveTolerance: 1.0e-10
 
 Observers:
   VolumeFileName: "ForceFreeAlfvenWaveLev5Volume"
@@ -28,10 +28,17 @@ Observers:
 EvolutionSystem:
   ForceFree:
     ConstraintDamping:
-      KappaPsi: 1.0
+      KappaPsi: 10.0
       KappaPhi: 1.0
     ForceFreeCurrent:
       ParallelConductivity: 1e3
+
+Filtering:
+  ExpFilter0:
+    Alpha: 12
+    HalfPower: 32
+    Enable: false
+    BlocksToFilter: All
 
 DomainCreator:
   Brick:
@@ -45,12 +52,13 @@ DomainCreator:
     # InitialGridPoints: [2, 2, 2]
     LowerBound: [-0.5, -0.1, -0.1]
     UpperBound: [0.5, 0.1, 0.1]
-    InitialRefinement: [5, 0, 0]
-    InitialGridPoints: [5, 5, 5]
+    InitialRefinement: [4, 0, 0]
+    InitialGridPoints: [3, 3, 3]
     TimeDependence: None
-    BoundaryConditionInX: Nonreflecting
-      # DirichletAnalytic:
-      #   AnalyticPrescription: *InitialData
+    # BoundaryConditionInX: NoIncomingPoynting
+    BoundaryConditionInX:
+      DirichletAnalytic:
+        AnalyticPrescription: *InitialData
     BoundaryConditionInY: Periodic
     BoundaryConditionInZ: Periodic
 
@@ -72,31 +80,31 @@ SpatialDiscretization:
     Subcell:
       RdmpDelta0: 1.0e-2
       RdmpEpsilon: 1.0e-2
-      PerssonExponent: 3.0
+      PerssonExponent: 4.0
       InitialData:
         RdmpDelta0: 1.0e-2
         RdmpEpsilon: 1.0e-2
         PerssonExponent: 3.0
-      AlwaysUseSubcells: False
+      AlwaysUseSubcells: false
       SubcellToDgReconstructionMethod: DimByDim
       UseHalo: false
-      OnlyDgBlocksAndGroups: None
+      OnlyDgBlocksAndGroups: []
       FiniteDifferenceDerivativeOrder: 2
     TciOptions:
-      AlphaEmFields: 3.5
-      CutoffTildeQ: 1.0e10
-      CutoffTildeJ: 1.0e10
-      MonitorNormalizedJForCutoff: false
-      CutoffHeating: 1.0e10
-      MonitorNormalizedHeatingForCutoff: false
+      TildeQCutoff: DoNotCheckTildeQ
+      AlphaMagE: DoNotCheckTildeE
+      AlphaMagB: 4.0
+      DeltaAlpha: 1.0
+      NumberOfHighestModes: 2
+      UseUmaxInsteadOfNorm: true
   SubcellSolver:
     Reconstructor:
-      MonotonisedCentral
-      # Wcns5z:
-      #   NonlinearWeightExponent: 2
-      #   Epsilon: 1e-15
-      #   FallbackReconstructor: None
-      #   MaxNumberOfExtrema: 0
+      # MonotonisedCentral
+      Wcns5z:
+        NonlinearWeightExponent: 2
+        Epsilon: 1e-15
+        FallbackReconstructor: None
+        MaxNumberOfExtrema: 0
       # AdaptiveOrder:
         # Alpha9: None
         # Alpha7: None
@@ -107,7 +115,7 @@ EventsAndTriggers:
   - Trigger:
       Slabs:
         Specified:
-          Values: [200]
+          Values: [300]
     Events:
       - Completion
   # - Trigger:
@@ -139,7 +147,7 @@ EventsAndTriggers:
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 5
+          Interval: 10
           Offset: 0
     Events:
       - ObserveFields:
@@ -168,13 +176,16 @@ ResourceInfo:
   Singletons: Auto
 
 InterpolationTargets:
-  TotalMagneticFluxOnSphere:
-    LMax: 30
+  TotalMagneticFluxOnUpperHemisphere:
+    LMax: 3
     Radius: 2.0
     Center: [0, 0, 0]
     AngularOrdering: Strahlkorper
   PoyntingFluxOnSphere:
-    LMax: 50
+    LMax: 3
     Radius: 2.0
     Center: [0, 0, 0]
     AngularOrdering: Strahlkorper
+
+Parallelization:
+  ElementDistribution: NumGridPoints
