@@ -18,6 +18,7 @@
 #include "PointwiseFunctions/AnalyticData/GrMhd/SlabJet.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/AnalyticSolution.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/AlfvenWave.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/GrMhd/BhlAccretion.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/BondiMichel.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/KomissarovShock.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/SmoothFlow.hpp"
@@ -34,8 +35,9 @@ using initial_data_list = tmpl::list<
     AnalyticData::MagnetizedFmDisk, AnalyticData::MagnetizedTovStar,
     AnalyticData::OrszagTangVortex, AnalyticData::PolarMagnetizedFmDisk,
     AnalyticData::RiemannProblem, AnalyticData::SlabJet, Solutions::AlfvenWave,
-    grmhd::Solutions::BondiMichel, Solutions::KomissarovShock,
-    Solutions::SmoothFlow, RelativisticEuler::Solutions::FishboneMoncriefDisk,
+    grmhd::Solutions::BondiMichel, Solutions::BhlAccretion,
+    Solutions::KomissarovShock, Solutions::SmoothFlow,
+    RelativisticEuler::Solutions::FishboneMoncriefDisk,
     RelativisticEuler::Solutions::RotatingStar,
     RelativisticEuler::Solutions::TovStar>;
 }  // namespace grmhd::ValenciaDivClean::InitialData

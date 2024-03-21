@@ -9,6 +9,7 @@ spectre_target_sources(
   ${LIBRARY}
   PRIVATE
   AlfvenWave.cpp
+  BhlAccretion.cpp
   BondiMichel.cpp
   KomissarovShock.cpp
   SmoothFlow.cpp
@@ -19,6 +20,7 @@ spectre_target_headers(
   INCLUDE_DIRECTORY ${CMAKE_SOURCE_DIR}/src
   HEADERS
   AlfvenWave.hpp
+  BhlAccretion.hpp
   BondiMichel.hpp
   KomissarovShock.hpp
   SmoothFlow.hpp
