@@ -4,6 +4,7 @@
 spectre_target_sources(
   ${LIBRARY}
   PRIVATE
+  BhlAccretion.cpp
   BoundaryCondition.cpp
   DemandOutgoingCharSpeeds.cpp
   DirichletAnalytic.cpp
@@ -15,6 +16,7 @@ spectre_target_headers(
   ${LIBRARY}
   INCLUDE_DIRECTORY ${CMAKE_SOURCE_DIR}/src
   HEADERS
+  BhlAccretion.hpp
   BoundaryCondition.hpp
   DemandOutgoingCharSpeeds.hpp
   DirichletAnalytic.hpp

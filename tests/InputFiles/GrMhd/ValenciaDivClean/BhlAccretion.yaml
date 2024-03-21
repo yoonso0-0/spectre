@@ -15,23 +15,22 @@ Evolution:
 
 InitialData: &InitialData
   BhlAccretion:
-    Velocity: 0.2
+    Velocity: 0.05
     Density: 1.0
-    Pressure: 0.1
+    Pressure: 0.01
     Spin: 0.0
     AdiabaticIndex: 1.33
 
 DomainCreator:
   Sphere:
     InnerRadius: 1.5
-    OuterRadius: 20.0
+    OuterRadius: 15.0
     Interior:
       ExciseWithBoundaryCondition:
         DemandOutgoingCharSpeeds
-        # DirichletAnalytic:
-          # AnalyticPrescription: *InitialData
+        # HydroFreeOutflow
     InitialRefinement: 2
-    InitialGridPoints: 4
+    InitialGridPoints: 3
     UseEquiangularMap: false
     EquatorialCompression: None
     RadialPartitioning: []
@@ -39,9 +38,11 @@ DomainCreator:
     WhichWedges: All
     TimeDependentMaps: None
     OuterBoundaryCondition:
-      # HydroFreeOutflow
-      DirichletAnalytic:
+      BhlAccretion:
         AnalyticPrescription: *InitialData
+      # HydroFreeOutflow
+      # DirichletAnalytic:
+        # AnalyticPrescription: *InitialData
 
 SpatialDiscretization:
   BoundaryCorrection:
@@ -119,7 +120,7 @@ EventsAndTriggers:
   - Trigger:
       Slabs:
         Specified:
-          Values: [800]
+          Values: [400]
     Events:
       - Completion
   - Trigger:
@@ -145,7 +146,7 @@ EventsAndTriggers:
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 5
+          Interval: 10
           Offset: 0
     Events:
       - ObserveFields:
@@ -153,6 +154,7 @@ EventsAndTriggers:
           VariablesToObserve: [
             RestMassDensity,
             SpatialVelocity,
+            TciStatus,
             ]
           InterpolateToMesh: None
           CoordinatesFloatingPointType: Float
