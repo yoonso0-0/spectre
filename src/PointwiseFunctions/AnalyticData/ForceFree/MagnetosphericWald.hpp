@@ -79,7 +79,16 @@ class MagnetosphericWald : public evolution::initial_data::InitialData,
     static type lower_bound() { return -1.0; }
   };
 
-  using options = tmpl::list<Spin>;
+  struct Inclination {
+    using type = double;
+    static constexpr Options::String help = {
+        "Inclination angle of Wald solution"};
+    static type upper_bound() { return M_PI; }
+    static type lower_bound() { return 0.0; }
+  };
+
+  using options = tmpl::list<Spin, Inclination>;
+
   static constexpr Options::String help{
       "Magnetospheric Wald initial value problem"};
 
@@ -90,7 +99,7 @@ class MagnetosphericWald : public evolution::initial_data::InitialData,
   MagnetosphericWald& operator=(MagnetosphericWald&&) = default;
   ~MagnetosphericWald() override = default;
 
-  explicit MagnetosphericWald(double spin,
+  explicit MagnetosphericWald(double spin, double inclination,
                               const Options::Context& context = {});
 
   auto get_clone() const
@@ -148,6 +157,7 @@ class MagnetosphericWald : public evolution::initial_data::InitialData,
 
  private:
   double spin_ = std::numeric_limits<double>::signaling_NaN();
+  double inclination_ = std::numeric_limits<double>::signaling_NaN();
   gr::Solutions::SphericalKerrSchild background_spacetime_{};
 
   friend bool operator==(const MagnetosphericWald& lhs,

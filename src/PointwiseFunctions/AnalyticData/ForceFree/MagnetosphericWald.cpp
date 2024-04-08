@@ -17,8 +17,10 @@
 namespace ForceFree::AnalyticData {
 
 MagnetosphericWald::MagnetosphericWald(const double spin,
+                                       const double inclination,
                                        const Options::Context& context)
     : spin_(spin),
+      inclination_(inclination),
       background_spacetime_{1.0, {{0.0, 0.0, spin_}}, {{0.0, 0.0, 0.0}}} {
   if (abs(spin_) > 1.0) {
     PARSE_ERROR(context, "The magnitude of the dimensionless spin ("
@@ -37,6 +39,7 @@ MagnetosphericWald::get_clone() const {
 void MagnetosphericWald::pup(PUP::er& p) {
   InitialData::pup(p);
   p | spin_;
+  p | inclination_;
   p | background_spacetime_;
 }
 
@@ -53,38 +56,41 @@ tuples::TaggedTuple<Tags::TildeB> MagnetosphericWald::variables(
   auto tilde_b =
       make_with_value<tnsr::I<DataVector, 3, Frame::Inertial>>(x, 0.0);
 
-  const double a_squared = square(spin_);
+  // const double a_squared = square(spin_);
 
-  const auto& x_bar = get<0>(x);
-  const auto& y_bar = get<1>(x);
-  const auto& z_bar = get<2>(x);
+  // const auto& x_bar = get<0>(x);
+  // const auto& y_bar = get<1>(x);
+  // const auto& z_bar = get<2>(x);
 
-  const DataVector r_squared = get(dot_product(x, x));
-  const DataVector r = sqrt(r_squared);
-  const DataVector r_to_the_fourth = square(r_squared);
-  const DataVector z_squared = square(z_bar);
+  // const DataVector r_squared = get(dot_product(x, x));
+  // const DataVector r = sqrt(r_squared);
+  // const DataVector r_to_the_fourth = square(r_squared);
+  // const DataVector z_squared = square(z_bar);
 
-  const DataVector temp1 = r_to_the_fourth + a_squared * z_squared;
-  const DataVector temp2 =
-      square(temp1) + 2.0 * r_to_the_fourth * r * (r_squared - a_squared);
-  const DataVector temp3 = temp1 * (r_squared - z_squared) -
-                           4.0 * r_to_the_fourth * (r_squared + z_squared);
+  // const DataVector temp1 = r_to_the_fourth + a_squared * z_squared;
+  // const DataVector temp2 =
+  //     square(temp1) + 2.0 * r_to_the_fourth * r * (r_squared - a_squared);
+  // const DataVector temp3 = temp1 * (r_squared - z_squared) -
+  //                          4.0 * r_to_the_fourth * (r_squared + z_squared);
 
-  get<0>(tilde_b) =
-      (spin_ * x_bar - r * y_bar) * temp2 + spin_ * r * x_bar * temp3;
-  get<1>(tilde_b) =
-      (r * x_bar + spin_ * y_bar) * temp2 + spin_ * r * y_bar * temp3;
+  // get<0>(tilde_b) =
+  //     (spin_ * x_bar - r * y_bar) * temp2 + spin_ * r * x_bar * temp3;
+  // get<1>(tilde_b) =
+  //     (r * x_bar + spin_ * y_bar) * temp2 + spin_ * r * y_bar * temp3;
 
-  get<0>(tilde_b) *= spin_ * z_bar / (r_to_the_fourth * square(temp1));
-  get<1>(tilde_b) *= spin_ * z_bar / (r_to_the_fourth * square(temp1));
+  // get<0>(tilde_b) *= spin_ * z_bar / (r_to_the_fourth * square(temp1));
+  // get<1>(tilde_b) *= spin_ * z_bar / (r_to_the_fourth * square(temp1));
 
-  get<2>(tilde_b) = 1.0 + (a_squared * z_squared / r_to_the_fourth);
-  get<2>(tilde_b) +=
-      a_squared *
-      (1.0 - z_squared * (a_squared + z_squared) *
-                 (5.0 * r_to_the_fourth + a_squared * z_squared) /
-                 square(temp1)) /
-      (r_squared * r);
+  // get<2>(tilde_b) = 1.0 + (a_squared * z_squared / r_to_the_fourth);
+  // get<2>(tilde_b) +=
+  //     a_squared *
+  //     (1.0 - z_squared * (a_squared + z_squared) *
+  //                (5.0 * r_to_the_fourth + a_squared * z_squared) /
+  //                square(temp1)) /
+  //     (r_squared * r);
+
+  get<1>(tilde_b) = sin(inclination_);
+  get<2>(tilde_b) = cos(inclination_);
 
   return tilde_b;
 }
