@@ -29,7 +29,7 @@ Amr:
   Criteria:
     - TruncationError:
         VariablesToMonitor: [Psi]
-        AbsoluteTarget: 1.e-6
+        AbsoluteTarget: 1.e-8
         RelativeTarget: 1.0
   Policies:
     EnforceTwoToOneBalanceInNormalDirection: true
@@ -93,8 +93,22 @@ SpatialDiscretization:
 EventsAndTriggersAtSlabs:
   - Trigger:
       Slabs:
+        EvenlySpaced:
+          Interval: 50
+          Offset: 0
+    Events:
+      - ObserveFields:
+          SubfileName: VolumeData
+          VariablesToObserve:
+            - Phi
+          InterpolateToMesh: None
+          CoordinatesFloatingPointType: Double
+          FloatingPointTypes: [Double]
+          BlocksToObserve: All
+  - Trigger:
+      Slabs:
         Specified:
-          Values: [5]
+          Values: [1000]
     Events:
       - Completion
 

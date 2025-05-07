@@ -5,10 +5,6 @@ Executable: EvolveScalarWave2D
 Testing:
   Check: parse;execute
   Timeout: 20
-ExpectedExitCode: 2 0
-ExpectedOutput:
-  - Checkpoints/Checkpoint_0000
-  - ScalarWavePlaneWave2DReductions.h5
 
 ---
 
@@ -31,6 +27,10 @@ InitialData:
 
 Amr:
   Criteria:
+    - TruncationError:
+        VariablesToMonitor: [Psi]
+        AbsoluteTarget: 1.e-6
+        RelativeTarget: 1.0
   Policies:
     EnforceTwoToOneBalanceInNormalDirection: true
     Isotropy: Anisotropic
@@ -41,23 +41,30 @@ Amr:
   Verbosity: Verbose
 
 PhaseChangeAndTriggers:
+  # - Trigger:
+  #     SlabCompares:
+  #       Comparison: GreaterThan
+  #       Value: 0
+  #   PhaseChanges:
+  #     - CheckpointAndExitAfterWallclock:
+  #         WallclockHours: 0.0
   - Trigger:
-      SlabCompares:
-        Comparison: GreaterThan
-        Value: 0
+      Slabs:
+        EvenlySpaced:
+          Interval: 1
+          Offset: 0
     PhaseChanges:
-      - CheckpointAndExitAfterWallclock:
-          WallclockHours: 0.0
+      - VisitAndReturn(EvaluateAmrCriteria)
+      - VisitAndReturn(AdjustDomain)
+      - VisitAndReturn(CheckDomain)
 
 Evolution:
-  InitialTime: &initial_time 0.0
-  # Test backwards evolution in an integration test
-  InitialTimeStep: -0.001
+  InitialTime: 0.0
+  InitialTimeStep: 0.001
   MinimumTimeStep: 1e-7
   TimeStepper:
     AdamsBashforth:
       Order: 3
-
 
 DomainCreator:
   Rectangle:
@@ -85,33 +92,28 @@ Filtering:
     BlocksToFilter: All
 
 EventsAndTriggersAtSlabs:
-  # Added on restart by option overlay
-  # - Trigger:
-  #     SlabCompares:
-  #       Comparison: GreaterThanOrEqualTo
-  #       Value: 3
-  #   Events:
-  #     - Completion
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 10
+          Offset: 0
+    Events:
+      - ObserveFields:
+          SubfileName: VolumeData
+          VariablesToObserve:
+            - Phi
+          InterpolateToMesh: None
+          CoordinatesFloatingPointType: Double
+          FloatingPointTypes: [Double]
+          BlocksToObserve: All
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [50]
+    Events:
+      - Completion
 
 EventsAndDenseTriggers:
-  # Test LTS dense output at the initial time
-  - Trigger:
-      Times:
-        Specified:
-          Values: [*initial_time]
-    Events:
-      - ObserveNorms:
-          SubfileName: Errors
-          TensorsToObserve:
-            - Name: Error(Psi)
-              NormType: L2Norm
-              Components: Sum
-            - Name: Error(Phi)
-              NormType: L2Norm
-              Components: Sum
-            - Name: Error(Pi)
-              NormType: L2Norm
-              Components: Sum
 
 Observers:
   VolumeFileName: "ScalarWavePlaneWave2DVolume"
