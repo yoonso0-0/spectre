@@ -103,7 +103,7 @@ class BondiHoyleLyttletonAccretion
   BondiHoyleLyttletonAccretion(double mass, const std::array<double, 3>& spin,
                                const std::array<double, 3>& center,
                                double adiabatic_index, double sound_speed,
-                               double x_velocity,
+                               double wind_velocity,
                                const Options::Context& context = {});
 
   auto get_clone() const

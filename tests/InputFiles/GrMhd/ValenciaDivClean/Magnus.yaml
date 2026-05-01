@@ -1,0 +1,194 @@
+# Distributed under the MIT License.
+# See LICENSE.txt for details.
+
+Executable: EvolveValenciaDivClean
+Testing:
+  Check: parse;execute
+  Timeout: 8
+  Priority: High
+
+---
+Parallelization:
+  ElementDistribution: NumGridPoints
+
+ResourceInfo:
+  AvoidGlobalProc0: false
+
+Evolution:
+  InitialTime: 0.0
+  InitialTimeStep: 0.005
+  MinimumTimeStep: 1e-7
+  TimeStepper: Rk3HesthavenSsp
+
+PhaseChangeAndTriggers:
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          # Current implementation checks wallclock at these global syncs
+          Interval: 100
+          Offset: 0
+    PhaseChanges:
+      - CheckpointAndExitAfterWallclock:
+          WallclockHours: None
+
+InitialData: &initial_data
+  BondiHoyleLyttletonAccretion:
+    Mass: 1
+    Spin: [0.0, 0.0, 0.0]
+    Center: [0.0, 0.0, 0.0]
+    AdiabaticIndex: 1.6666666666666
+    SoundSpeed: 0.1
+    WindVelocity: 0.0
+
+EquationOfState: FromInitialData
+
+DomainCreator:
+  Sphere:
+    InnerRadius: 1
+    OuterRadius: 10.0
+    Interior:
+      ExciseWithBoundaryCondition:
+        DemandOutgoingCharSpeeds
+        # HydroFreeOutflow
+        # DirichletAnalytic:
+        # AnalyticPrescription: *initial_data
+    InitialRefinement: 1
+    InitialGridPoints: 3
+    UseEquiangularMap: false
+    EquatorialCompression: None
+    WhichWedges: All
+    RadialPartitioning: []
+    RadialDistribution: Linear
+    TimeDependentMaps: None
+    OuterBoundaryCondition:
+      DirichletAnalytic:
+        AnalyticPrescription: *initial_data
+
+SpatialDiscretization:
+  BoundaryCorrection:
+    Rusanov:
+  DiscontinuousGalerkin:
+    Formulation: StrongInertial
+    Quadrature: GaussLobatto
+    Subcell:
+      TroubledCellIndicator:
+        PerssonTci:
+          Exponent: 4.0
+          NumHighestModes: 1
+        RdmpTci:
+          Delta0: 1.0e-7
+          Epsilon: 1.0e-3
+        FdToDgTci:
+          NumberOfStepsBetweenTciCalls: 1
+          MinTciCallsAfterRollback: 1
+          MinimumClearTcis: 1
+        AlwaysUseSubcells: false
+        EnableExtensionDirections: false
+        UseHalo: false
+        OnlyDgBlocksAndGroups: None
+      SubcellToDgReconstructionMethod: DimByDim
+      FiniteDifferenceDerivativeOrder: 2
+      FdInterpolationOrder: 1
+    TciOptions:
+      MinimumValueOfD: 1.0e-20
+      MinimumValueOfYe: 1.0e-20
+      MinimumValueOfTildeTau: 1.0e-50
+      MagneticFieldCutoff: DoNotCheckMagneticField
+      AtmosphereDensity: 1.01e-15
+      SafetyFactorForB: 1.0e-12
+  SubcellSolver:
+    Reconstructor:
+      MonotonisedCentralPrim:
+        ReconstructRhoTimesTemperature: true
+
+EvolutionSystem:
+  ValenciaDivClean:
+    DampingParameter: 1.0
+
+VariableFixing:
+  FixConservatives:
+    Enable: false # Only needed when not using Kastaun for recovery
+    CutoffD: &CutoffD 1.0e-12
+    MinimumValueOfD: &MinimumD 1.0e-12
+    CutoffYe: 0.0
+    MinimumValueOfYe: 0.0
+    SafetyFactorForB: 1.0e-12
+    SafetyFactorForS: 1.0e-12
+    SafetyFactorForSCutoffD: 1.0e-12
+    SafetyFactorForSSlope: 0.0
+    MagneticField: AssumeNonZero
+  FixToAtmosphere:
+    DensityOfAtmosphere: 1.0e-12
+    DensityCutoff: 1.0e-12
+    VelocityLimiting:
+      AtmosphereMaxVelocity: 0
+      NearAtmosphereMaxVelocity: 1.0e-4
+      AtmosphereDensityCutoff: 3.0e-12
+      TransitionDensityBound: 1.0e-11
+    KappaLimiting:
+      DensityLowerBound: 2.0e-11
+      EplisonKappaMinus: 1.0e-3
+      DensityUpperBound: 2.0e-10
+      EpsilonKappaMax: 0.01
+      LimitAboveDensityUpperBound: False
+      MinTemperature: FromEos
+
+PrimitiveFromConservative:
+  CutoffDForInversion: *CutoffD
+  DensityWhenSkippingInversion: *MinimumD
+  KastaunMaxLorentzFactor: 10.0
+
+Observers:
+  VolumeFileName: "MagnusVolume"
+  ReductionFileName: "MagnusReductions"
+
+EventsAndTriggersAtCheckpoints:
+
+EventsAndTriggersAtSlabs:
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [0]
+    Events:
+      - ChangeSlabSize:
+          DelayChange: 0
+          StepChoosers:
+            - Cfl:
+                SafetyFactor: 0.4
+  - Trigger:
+      Slabs:
+        Specified:
+          Values: [2]
+    Events:
+      - Completion
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 1
+          Offset: 0
+    Events:
+      - ObserveFields:
+          SubfileName: VolumeData
+          VariablesToObserve:
+            [RestMassDensity, SpatialVelocity, SpecificInternalEnergy]
+          InterpolateToMesh: None
+          ProjectToMesh: None
+          CoordinatesFloatingPointType: Double
+          FloatingPointTypes: [Float]
+          BlocksToObserve: All
+      # - Trigger:
+      #     Slabs:
+      #       EvenlySpaced:
+      #         Interval: 10
+      #         Offset: 0
+      # Events:
+      - ObserveTimeStep:
+          SubfileName: TimeSteps
+          PrintTimeToTerminal: true
+          ObservePerCore: false
+
+EventsAndDenseTriggers:
+
+EventsRunAtCleanup:
+  ObservationValue: -1000.0
+  Events:
