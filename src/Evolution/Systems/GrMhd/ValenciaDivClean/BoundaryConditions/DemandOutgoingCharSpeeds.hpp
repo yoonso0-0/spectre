@@ -81,10 +81,12 @@ class DemandOutgoingCharSpeeds final : public BoundaryCondition {
       const Scalar<DataVector>& lapse);
 
   using fd_interior_evolved_variables_tags = tmpl::list<>;
-  using fd_interior_temporary_tags =
-      tmpl::list<evolution::dg::subcell::Tags::Mesh<3>,
-                 gr::Tags::Shift<DataVector, 3>, gr::Tags::Lapse<DataVector>,
-                 gr::Tags::SpatialMetric<DataVector, 3>>;
+  using fd_interior_temporary_tags = tmpl::list<
+      gr::Tags::Lapse<DataVector>, gr::Tags::Shift<DataVector, 3>,
+      gr::Tags::SpatialMetric<DataVector, 3>,
+      gr::Tags::InverseSpatialMetric<DataVector, 3>,
+      domain::Tags::InverseJacobian<3, Frame::ElementLogical, Frame::Inertial>,
+      domain::Tags::Mesh<3>, evolution::dg::subcell::Tags::Mesh<3>>;
   using fd_interior_primitive_variables_tags =
       tmpl::list<hydro::Tags::RestMassDensity<DataVector>,
                  hydro::Tags::ElectronFraction<DataVector>,
@@ -112,15 +114,19 @@ class DemandOutgoingCharSpeeds final : public BoundaryCondition {
       const Direction<3>& direction,
 
       const std::optional<tnsr::I<DataVector, 3, Frame::Inertial>>&
-          face_mesh_velocity,
-      const tnsr::i<DataVector, 3, Frame::Inertial>&
-          outward_directed_normal_covector,
+          dg_volume_mesh_velocity,
+
+      // fd_interior_evolved_variables_tags
 
       // fd_interior_temporary_tags
-      const Mesh<3>& subcell_mesh,
-      const tnsr::I<DataVector, 3, Frame::Inertial>& interior_shift,
       const Scalar<DataVector>& interior_lapse,
+      const tnsr::I<DataVector, 3, Frame::Inertial>& interior_shift,
       const tnsr::ii<DataVector, 3, Frame::Inertial>& interior_spatial_metric,
+      const tnsr::II<DataVector, 3, Frame::Inertial>&
+          interior_inv_spatial_metric,
+      const ::InverseJacobian<DataVector, 3, Frame::ElementLogical,
+                              Frame::Inertial>& inv_jacobian_dg,
+      const Mesh<3>& dg_mesh, const Mesh<3>& subcell_mesh,
 
       // fd_interior_primitive_variables_tags
       const Scalar<DataVector>& interior_rest_mass_density,

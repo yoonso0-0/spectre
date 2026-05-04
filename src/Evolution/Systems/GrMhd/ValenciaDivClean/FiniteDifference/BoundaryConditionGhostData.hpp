@@ -135,12 +135,12 @@ void BoundaryConditionGhostData::apply(
     // non-owning Variables on it.
     using FluxVars =
         Variables<db::wrap_tags_in<::Tags::Flux, flux_variables,
-                                    tmpl::size_t<3>, Frame::Inertial>>;
+                                   tmpl::size_t<3>, Frame::Inertial>>;
     const size_t prims_size =
         num_prims_tensor_components * ghost_zone_size * num_face_pts;
     const size_t fluxes_size =
         (compute_cell_centered_flux ? FluxVars::number_of_independent_components
-         : 0) *
+                                    : 0) *
         ghost_zone_size * num_face_pts;
 
     auto& all_ghost_data = db::get_mutable_reference<
@@ -224,26 +224,13 @@ void BoundaryConditionGhostData::apply(
                                    DemandOutgoingCharSpeeds) {
             // This boundary condition only checks if all the characteristic
             // speeds are directed outward.
-            const auto& volume_mesh_velocity =
+            const auto& dg_volume_mesh_velocity =
                 db::get<domain::Tags::MeshVelocity<3, Frame::Inertial>>(*box);
-            if (volume_mesh_velocity.has_value()) {
-              ERROR("Subcell currently does not support moving mesh");
-            }
-
-            std::optional<tnsr::I<DataVector, 3>> face_mesh_velocity{};
-
-            const auto& normal_covector_and_magnitude =
-                db::get<evolution::dg::Tags::NormalCovectorAndMagnitude<3>>(
-                    *box);
-            const auto outward_directed_normal_covector =
-                get<evolution::dg::Tags::NormalCovector<3>>(
-                    normal_covector_and_magnitude.at(direction).value());
 
             const auto apply_fd_demand_outgoing_char_speeds =
-                [&boundary_condition, &cell_centered_ghost_fluxes, &direction,
-                 &face_mesh_velocity, &ghost_data_vars,
-                 &outward_directed_normal_covector](
-                    const auto&... boundary_ghost_data_args) {
+                [&boundary_condition, &cell_centered_ghost_fluxes,
+                 &dg_volume_mesh_velocity, &direction,
+                 &ghost_data_vars](const auto&... boundary_ghost_data_args) {
                   return (*boundary_condition)
                       .fd_demand_outgoing_char_speeds(
                           make_not_null(&get<RestMassDensity>(ghost_data_vars)),
@@ -255,8 +242,10 @@ void BoundaryConditionGhostData::apply(
                           make_not_null(&get<MagneticField>(ghost_data_vars)),
                           make_not_null(
                               &get<DivergenceCleaningField>(ghost_data_vars)),
-                          make_not_null(&cell_centered_ghost_fluxes), direction,
-                          face_mesh_velocity, outward_directed_normal_covector,
+
+                          make_not_null(&cell_centered_ghost_fluxes),
+
+                          direction, dg_volume_mesh_velocity,
                           boundary_ghost_data_args...);
                 };
             apply_subcell_boundary_condition_impl(
