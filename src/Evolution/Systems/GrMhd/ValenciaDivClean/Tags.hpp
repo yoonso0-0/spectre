@@ -69,6 +69,19 @@ struct TildePhi : db::SimpleTag {
 struct VariablesNeededFixing : db::SimpleTag {
   using type = bool;
 };
+
+/// Momentum outflux
+struct MomentumOutflux : db::SimpleTag {
+  using type = tnsr::i<DataVector, 3>;
+  static std::string name() { return "MomentumOutflux"; }
+};
+
+/// GR volume source terms for drag
+struct GravitationalDragSourceTerm : db::SimpleTag {
+  using type = Scalar<DataVector>;
+  static std::string name() { return "GravitationalDragSourceTerm"; }
+};
+
 }  // namespace Tags
 
 namespace OptionTags {

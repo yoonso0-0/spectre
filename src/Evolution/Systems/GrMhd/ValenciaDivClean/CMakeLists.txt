@@ -11,6 +11,7 @@ spectre_target_sources(
   Characteristics.cpp
   ComovingMagneticFieldMagnitude.cpp
   ConservativeFromPrimitive.cpp
+  DragIntegrals.cpp
   FixConservatives.cpp
   Flattener.cpp
   Fluxes.cpp
@@ -30,6 +31,7 @@ spectre_target_headers(
   ComovingMagneticFieldMagnitude.hpp
   ComputeFluxesFromPrimitives.hpp
   ConservativeFromPrimitive.hpp
+  DragIntegrals.hpp
   FixConservatives.hpp
   Flattener.hpp
   Fluxes.hpp

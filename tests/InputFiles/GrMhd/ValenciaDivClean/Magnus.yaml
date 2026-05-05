@@ -38,7 +38,7 @@ InitialData: &initial_data
     Center: [0.0, 0.0, 0.0]
     AdiabaticIndex: 1.6666666666666
     SoundSpeed: 0.1
-    WindVelocity: 0.0
+    WindVelocity: 0.1
 
 EquationOfState: FromInitialData
 
@@ -58,7 +58,9 @@ DomainCreator:
     EquatorialCompression: None
     WhichWedges: All
     RadialPartitioning: []
-    RadialDistribution: Linear
+    RadialDistribution:
+      # Linear
+      Logarithmic
     TimeDependentMaps: None
     OuterBoundaryCondition:
       DirichletAnalytic:
@@ -154,17 +156,17 @@ EventsAndTriggersAtSlabs:
           DelayChange: 0
           StepChoosers:
             - Cfl:
-                SafetyFactor: 0.4
+                SafetyFactor: 0.3
   - Trigger:
       Slabs:
         Specified:
-          Values: [2]
+          Values: [200]
     Events:
       - Completion
   - Trigger:
       Slabs:
         EvenlySpaced:
-          Interval: 1
+          Interval: 10
           Offset: 0
     Events:
       - ObserveFields:
@@ -176,12 +178,12 @@ EventsAndTriggersAtSlabs:
           CoordinatesFloatingPointType: Double
           FloatingPointTypes: [Float]
           BlocksToObserve: All
-      # - Trigger:
-      #     Slabs:
-      #       EvenlySpaced:
-      #         Interval: 10
-      #         Offset: 0
-      # Events:
+  - Trigger:
+      Slabs:
+        EvenlySpaced:
+          Interval: 10
+          Offset: 0
+    Events:
       - ObserveTimeStep:
           SubfileName: TimeSteps
           PrintTimeToTerminal: true

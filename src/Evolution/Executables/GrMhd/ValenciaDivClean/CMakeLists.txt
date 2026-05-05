@@ -15,6 +15,7 @@ set(LIBS_TO_LINK
   GeneralRelativitySolutions
   GrMhdAnalyticData
   GrMhdSolutions
+  GrSurfaces
   Hydro
   Informer
   Interpolation
