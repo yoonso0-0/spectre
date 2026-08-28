@@ -22,11 +22,12 @@
 #include "DataStructures/LeviCivitaIterator.hpp"
 #include "DataStructures/Tags/TempTensor.hpp"
 #include "DataStructures/Tensor/EagerMath/DeterminantAndInverse.hpp"
+#include "DataStructures/Tensor/EagerMath/RaiseOrLowerIndex.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Evolution/DgSubcell/Projection.hpp"
 #include "Evolution/DgSubcell/SliceTensor.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
-#include "DataStructures/Tensor/EagerMath/RaiseOrLowerIndex.hpp"
+#include "NumericalAlgorithms/Spectral/Parity.hpp"
 
 #include <iostream>
 
@@ -328,7 +329,7 @@ void Nonreflecting::fd_ghost(
       subcell_volume_normal_covector.get(j) =
           evolution::dg::subcell::fd::project_to_faces(
               inv_jacobian_dg.get(direction_dim, j), dg_mesh, subcell_extents,
-              direction_dim);
+              direction_dim, Spectral::Parity::Uninitialized);
     }
     evolution::dg::subcell::slice_tensor_for_subcell(
         make_not_null(&subcell_normal_covector), subcell_volume_normal_covector,

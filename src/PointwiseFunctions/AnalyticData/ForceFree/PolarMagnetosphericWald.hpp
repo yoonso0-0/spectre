@@ -152,7 +152,7 @@ class PolarMagnetosphericWald
   friend bool operator==(const PolarMagnetosphericWald& lhs,
                          const PolarMagnetosphericWald& rhs);
   double spin_ = 0.90;
-  MagnetosphericWald magnetospheric_wald_{spin_};
+  MagnetosphericWald magnetospheric_wald_{spin_, 0.0};
   grmhd::AnalyticData::SphericalTorus torus_map_;
 };
 

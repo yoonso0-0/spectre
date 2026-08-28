@@ -7,15 +7,19 @@
 #include "DataStructures/Tags/TempTensor.hpp"
 #include "Evolution/Imex/GuessResult.hpp"
 #include "Evolution/Imex/Protocols/ImexSystem.hpp"
+#include "Evolution/Imex/Protocols/ImplicitSource.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Utilities/ProtocolHelpers.hpp"
+#include "Utilities/Protocols/StaticReturnApplyable.hpp"
 #include "Utilities/TMPL.hpp"
 
 namespace ForceFree {
 namespace Imex {
 
-struct DivCleaningStiffSources {
+struct DivCleaningStiffSources
+    : tt::ConformsTo<imex::protocols::ImplicitSource>,
+      tt::ConformsTo<protocols::StaticReturnApplyable> {
   using return_tags = tmpl::list<::Tags::Source<Tags::TildePsi>,
                                  ::Tags::Source<Tags::TildePhi>>;
   using argument_tags =

@@ -64,7 +64,6 @@
 #include "Evolution/Systems/ForceFree/BoundaryConditions/BoundaryCondition.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryConditions/Factory.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryCorrections/Factory.hpp"
-#include "Evolution/Systems/ForceFree/BoundaryCorrections/RegisterDerived.hpp"
 #include "Evolution/Systems/ForceFree/Constraints.hpp"
 #include "Evolution/Systems/ForceFree/ElectricCurrentDensity.hpp"
 #include "Evolution/Systems/ForceFree/ElectromagneticVariables.hpp"
@@ -126,7 +125,6 @@
 #include "ParallelAlgorithms/Interpolation/Callbacks/ObserveTimeSeriesOnSurface.hpp"
 #include "ParallelAlgorithms/Interpolation/Events/InterpolateWithoutInterpComponent.hpp"
 #include "ParallelAlgorithms/Interpolation/InterpolationTarget.hpp"
-#include "ParallelAlgorithms/Interpolation/Interpolator.hpp"
 #include "ParallelAlgorithms/Interpolation/PointInfoTag.hpp"
 #include "ParallelAlgorithms/Interpolation/Protocols/InterpolationTargetTag.hpp"
 #include "ParallelAlgorithms/Interpolation/Targets/Sphere.hpp"
@@ -172,6 +170,7 @@ struct EvolutionMetavars {
   static constexpr size_t volume_dim = 3;
   using system = ForceFree::System;
   using temporal_id = Tags::TimeStepId;
+  using TimeStepperBase = ImexTimeStepper;
 
   static constexpr bool use_dg_element_collection = false;
 
@@ -422,11 +421,10 @@ struct EvolutionMetavars {
       imex::Actions::DoImplicitStep<system>,
       Actions::MutateApply<ForceFree::ImposeMhdConditionInsideNs>,
       Actions::MutateApply<ChangeTimeStepperOrder<system>>,
-      tmpl::conditional_t<
-          use_dg_subcell,
-          evolution::dg::subcell::Actions::TciAndRollback<
-              ForceFree::subcell::TciOnDgGrid>,
-          tmpl::list<>>,
+      tmpl::conditional_t<use_dg_subcell,
+                          evolution::dg::subcell::Actions::TciAndRollback<
+                              ForceFree::subcell::TciOnDgGrid>,
+                          tmpl::list<>>,
       Actions::MutateApply<CleanHistory<system>>,
       Actions::MutateApply<imex::CleanHistory<system>>,
       Actions::MutateApply<evolution::dg::CleanMortarHistory<volume_dim>>,
@@ -560,7 +558,7 @@ struct EvolutionMetavars {
           ForceFree::Tags::TildeBSquaredCompute,
           ForceFree::Tags::TildeEDotTildeBCompute,
           ForceFree::Tags::ComputeTildeJ,
-      ForceFree::Tags::NsInteriorSpatialVelocityCompute<use_dg_subcell>>>,
+          ForceFree::Tags::NsInteriorSpatialVelocityCompute<use_dg_subcell>>>,
 
       Initialization::Actions::AddComputeTags<
           StepChoosers::step_chooser_compute_tags<EvolutionMetavars>>,
@@ -568,8 +566,8 @@ struct EvolutionMetavars {
       evolution::dg::Initialization::Actions::SetupEqualRateRegions<
           EvolutionMetavars, volume_dim, equal_rate_regions>,
 
-      intrp::Actions::ElementInitInterpPoints<
-          intrp::Tags::InterpPointInfo<EvolutionMetavars>>,
+      intrp::Actions::ElementInitInterpPoints<volume_dim,
+                                              interpolation_target_tags>,
 
       evolution::Actions::InitializeRunEventsAndDenseTriggers,
       Initialization::Actions::InitializeItems<
@@ -603,15 +601,15 @@ struct EvolutionMetavars {
 
           Parallel::PhaseActions<
               Parallel::Phase::Evolve,
-              tmpl::flatten<tmpl::list<
-                  evolution::Actions::RunEventsAndTriggers<
-                      Triggers::WhenToCheck::AtSteps>,
-                  evolution::Actions::RunEventsAndTriggers<
-                      Triggers::WhenToCheck::AtSlabs>,
-                  Actions::ChangeSlabSize,
-                  evolution::dg::Actions::ChangeFixedLtsRatio, step_actions,
-                  Actions::MutateApply<AdvanceTime<>>,
-                  PhaseControl::Actions::ExecutePhaseChange>>>>>;
+              tmpl::flatten<
+                  tmpl::list<evolution::Actions::RunEventsAndTriggers<
+                                 Triggers::WhenToCheck::AtSteps>,
+                             evolution::Actions::RunEventsAndTriggers<
+                                 Triggers::WhenToCheck::AtSlabs>,
+                             Actions::ChangeSlabSize,
+                             evolution::dg::Actions::ChangeFixedLtsRatio,
+                             step_actions, Actions::MutateApply<AdvanceTime<>>,
+                             PhaseControl::Actions::ExecutePhaseChange>>>>>;
 
   struct registration
       : tt::ConformsTo<Parallel::protocols::RegistrationMetavariables> {

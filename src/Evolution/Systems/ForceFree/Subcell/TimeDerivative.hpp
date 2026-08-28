@@ -17,6 +17,7 @@
 #include "DataStructures/Variables.hpp"
 #include "Domain/Structure/Element.hpp"
 #include "Domain/Tags.hpp"
+#include "Evolution/BoundaryCorrection.hpp"
 #include "Evolution/BoundaryCorrectionTags.hpp"
 #include "Evolution/DgSubcell/CartesianFluxDivergence.hpp"
 #include "Evolution/DgSubcell/ComputeBoundaryTerms.hpp"
@@ -32,7 +33,6 @@
 #include "Evolution/DiscontinuousGalerkin/Actions/NormalCovectorAndMagnitude.hpp"
 #include "Evolution/DiscontinuousGalerkin/Actions/PackageDataImpl.hpp"
 #include "Evolution/DiscontinuousGalerkin/MortarTags.hpp"
-#include "Evolution/Systems/ForceFree/BoundaryCorrections/BoundaryCorrection.hpp"
 #include "Evolution/Systems/ForceFree/BoundaryCorrections/Factory.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/BoundaryConditionGhostData.hpp"
 #include "Evolution/Systems/ForceFree/FiniteDifference/Factory.hpp"
@@ -46,6 +46,7 @@
 #include "NumericalAlgorithms/FiniteDifference/DerivativeOrder.hpp"
 #include "NumericalAlgorithms/FiniteDifference/HighOrderFluxCorrection.hpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
+#include "NumericalAlgorithms/Spectral/Parity.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Utilities/CallWithDynamicType.hpp"
 #include "Utilities/ErrorHandling/Assert.hpp"
@@ -66,6 +67,9 @@ namespace ForceFree::subcell {
 struct TimeDerivative {
   template <typename DbTagsList>
   static void apply(const gsl::not_null<db::DataBox<DbTagsList>*> box) {
+    using metavariables =
+        typename std::decay_t<decltype(db::get<Parallel::Tags::Metavariables>(
+            *box))>;
     using evolved_vars_tags = typename System::variables_tag::tags_list;
     using fluxes_tags = typename Fluxes::return_tags;
 
@@ -87,9 +91,10 @@ struct TimeDerivative {
         db::get<ForceFree::fd::Tags::Reconstructor>(*box);
 
     const auto& boundary_correction =
-        db::get<evolution::Tags::BoundaryCorrection<System>>(*box);
+        db::get<evolution::Tags::BoundaryCorrection>(*box);
     using derived_boundary_corrections =
-        typename std::decay_t<decltype(boundary_correction)>::creatable_classes;
+        tmpl::at<typename metavariables::factory_creation::factory_classes,
+                 evolution::BoundaryCorrection>;
 
     // Project DG mesh velocity onto subcell if needed
     const std::optional<tnsr::I<DataVector, 3, Frame::Inertial>>&
@@ -112,8 +117,7 @@ struct TimeDerivative {
     const Element<3>& element = db::get<domain::Tags::Element<3>>(*box);
     const bool element_is_interior = element.external_boundaries().empty();
     constexpr bool subcell_enabled_at_external_boundary =
-        std::decay_t<decltype(db::get<Parallel::Tags::Metavariables>(
-            *box))>::SubcellOptions::subcell_enabled_at_external_boundary;
+        metavariables::SubcellOptions::subcell_enabled_at_external_boundary;
     ASSERT(element_is_interior or subcell_enabled_at_external_boundary,
            "Subcell time derivative is called at a boundary element while "
            "using subcell is disabled at external boundaries."
@@ -291,7 +295,8 @@ struct TimeDerivative {
                 subcell_mesh_velocity_on_faces.value().get(j) =
                     evolution::dg::subcell::fd::project_to_faces(
                         dg_volume_mesh_velocity.value().get(j), dg_mesh,
-                        subcell_face_centered_mesh_extents, i);
+                        subcell_face_centered_mesh_extents, i,
+                        Spectral::Parity::Uninitialized);
               }
 
               tmpl::for_each<evolved_vars_tags>(
@@ -344,12 +349,14 @@ struct TimeDerivative {
               lower_outward_conormal.get(j) =
                   evolution::dg::subcell::fd::project_to_faces(
                       inv_jacobian_dg.get(i, j), dg_mesh,
-                      subcell_face_centered_mesh_extents, i);
+                      subcell_face_centered_mesh_extents, i,
+                      Spectral::Parity::Uninitialized);
             }
             const auto det_inv_jacobian_face =
                 evolution::dg::subcell::fd::project_to_faces(
                     get(det_inv_jacobian_dg), dg_mesh,
-                    subcell_face_centered_mesh_extents, i);
+                    subcell_face_centered_mesh_extents, i,
+                    Spectral::Parity::Uninitialized);
 
             const Scalar<DataVector> normalization{sqrt(get(
                 dot_product(lower_outward_conormal, lower_outward_conormal,
@@ -409,7 +416,8 @@ struct TimeDerivative {
             evolution::dg::subcell::compute_boundary_terms(
                 make_not_null(&gsl::at(fd_boundary_corrections, i)),
                 dynamic_cast<const DerivedCorrection&>(boundary_correction),
-                upper_packaged_data, lower_packaged_data);
+                upper_packaged_data, lower_packaged_data, db::as_access(*box),
+                typename DerivedCorrection::dg_boundary_terms_volume_tags{});
             // We need to multiply by the normal vector normalization
             gsl::at(fd_boundary_corrections, i) *= get(normalization);
             // Also multiply by determinant of Jacobian, following Eq.(34)

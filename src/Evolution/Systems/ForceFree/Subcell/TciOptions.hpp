@@ -70,6 +70,9 @@ struct TciOptions {
 
   TciOptions();
   explicit TciOptions(std::optional<double> tilde_q_cutoff_in);
+  TciOptions(std::optional<double> tilde_q_cutoff_in,
+             std::optional<double> alpha_mag_e_in, double alpha_mag_b_in,
+             double delta_alpha_in, bool use_umax_instead_of_norm_in);
 
   // NOLINTNEXTLINE(google-runtime-references)
   void pup(PUP::er& /*p*/);

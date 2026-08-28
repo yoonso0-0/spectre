@@ -18,6 +18,7 @@
 #include "Domain/BoundaryConditions/BoundaryCondition.hpp"
 #include "Evolution/DgSubcell/Projection.hpp"
 #include "Evolution/DgSubcell/SliceTensor.hpp"
+#include "NumericalAlgorithms/Spectral/Parity.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeString.hpp"
 #include "Utilities/TMPL.hpp"
@@ -175,7 +176,7 @@ void DemandOutgoingCharSpeeds::fd_demand_outgoing_char_speeds(
       subcell_volume_normal_covector.get(j) =
           evolution::dg::subcell::fd::project_to_faces(
               inv_jacobian_dg.get(dim_direction, j), dg_mesh, subcell_extents,
-              dim_direction);
+              dim_direction, Spectral::Parity::Uninitialized);
     }
     evolution::dg::subcell::slice_tensor_for_subcell(
         make_not_null(&subcell_face_normal_covector),
@@ -205,8 +206,8 @@ void DemandOutgoingCharSpeeds::fd_demand_outgoing_char_speeds(
     for (size_t j = 0; j < 3; ++j) {
       subcell_volume_mesh_velocity.get(j) =
           evolution::dg::subcell::fd::project_to_faces(
-              inv_jacobian_dg.get(dim_direction, j), dg_mesh, subcell_extents,
-              dim_direction);
+              dg_volume_mesh_velocity.value().get(j), dg_mesh, subcell_extents,
+              dim_direction, Spectral::Parity::Uninitialized);
     }
 
     auto& subcell_face_mesh_velocity = get<::Tags::TempI<0, 3>>(temporary_vars);

@@ -7,9 +7,13 @@
 #include "DataStructures/DataBox/Prefixes.hpp"
 #include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
+#include "Evolution/Imex/Protocols/ImplicitSource.hpp"
+#include "Evolution/Imex/Protocols/ImplicitSourceJacobian.hpp"
 #include "Evolution/Imex/Tags/Jacobian.hpp"
 #include "Evolution/Systems/ForceFree/Tags.hpp"
 #include "PointwiseFunctions/GeneralRelativity/TagsDeclarations.hpp"
+#include "Utilities/ProtocolHelpers.hpp"
+#include "Utilities/Protocols/StaticReturnApplyable.hpp"
 #include "Utilities/TMPL.hpp"
 
 /// \cond
@@ -137,7 +141,8 @@ struct ComputeTildeJ : TildeJ, db::ComputeTag {
  * \brief Computes the stiff source term, which has minus signs
  *
  */
-struct StiffSourceTildeE {
+struct StiffSourceTildeE : tt::ConformsTo<imex::protocols::ImplicitSource>,
+                           tt::ConformsTo<protocols::StaticReturnApplyable> {
   using return_tags = tmpl::list<::Tags::Source<Tags::TildeE>>;
   using argument_tags =
       tmpl::list<Tags::TildeQ, Tags::TildeE, Tags::TildeB,
@@ -156,7 +161,9 @@ struct StiffSourceTildeE {
       const std::optional<Scalar<DataVector>>& neutron_star_interior_mask);
 };
 
-struct StiffSourceTildeEJacobian {
+struct StiffSourceTildeEJacobian
+    : tt::ConformsTo<imex::protocols::ImplicitSourceJacobian>,
+      tt::ConformsTo<protocols::StaticReturnApplyable> {
   using return_tags = tmpl::list<
       ::imex::Tags::Jacobian<Tags::TildeE, ::Tags::Source<Tags::TildeE>>>;
   using argument_tags =
